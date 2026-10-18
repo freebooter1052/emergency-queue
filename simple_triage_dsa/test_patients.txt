@@ -1,0 +1,27 @@
+# Test data set for the triage demo (all patients are fictional).
+# Load it from the menu: option 1 -> 2 (load from file).
+#
+# Format, one patient per line:   id, name, esi, deterioration, zone
+#   esi = 1..5      deterioration = 0..4      zone = 1..5
+# Blank lines and lines starting with # are ignored.
+# Patients are added in file order, so earlier lines have earlier arrival order.
+
+# ---- Valid patients ----
+201, Priya Nair,      3, 0, 1
+202, Omar Haddad,     2, 1, 2
+203, Lena Fischer,    4, 0, 2
+204, Marcus Webb,     1, 2, 3
+205, Yuki Tanaka,     5, 0, 4
+206, Sofia Rossi,     3, 2, 2
+207, Tom Okafor,      4, 1, 1
+208, Isabel Duarte,   2, 0, 3
+209, Kofi Mensah,     3, 0, 2
+210, Nina Petrova,    5, 1, 1
+
+# ---- Deliberately invalid lines (should be rejected with a message) ----
+201, Duplicate Id,    3, 0, 1
+211, Bad Esi,         6, 0, 1
+212, Bad Deterioration, 3, 5, 1
+213, Bad Zone,        3, 0, 7
+214, Missing Fields
+abc, Not A Number,    3, 0, 1

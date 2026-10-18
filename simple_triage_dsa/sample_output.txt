@@ -1,0 +1,205 @@
+
+=============== PREDEFINED TRIAGE DEMONSTRATION ===============
+All patients are fictional. The priority formula is a teaching example,
+not a validated medical triage formula. Lower score = attended earlier.
+Zone capacities:  zone 1 = 2  zone 2 = 3  zone 3 = 3  zone 4 = 2  zone 5 = 2
+
+------------------------------------------------------------------
+STEP 1: Patients arrive in two waves (heap insert, O(log n) each)
+------------------------------------------------------------------
+First wave arrives at minute 0:
+  Added patient 101 (Asha Menon), ESI 3, deterioration 0, zone 2 -> priority score 200
+  Added patient 102 (Ben Carter), ESI 4, deterioration 0, zone 3 -> priority score 300
+  Added patient 103 (Chen Li), ESI 2, deterioration 0, zone 1 -> priority score 100
+
+30 minutes pass before the second wave arrives:
+  Advanced simulated time by 30 min for 3 waiting patient(s).
+    Patient 103: wait now 30 min, score 100 -> 40
+    Patient 101: wait now 30 min, score 200 -> 140
+    Patient 102: wait now 30 min, score 300 -> 240
+  Cost: all n scores changed, so the heap did O(n) work (n updates + one
+  bottom-up rebuild) and the segment tree did 5 point updates, O(k log k).
+
+Second wave arrives at minute 30:
+  Added patient 104 (Diya Rao), ESI 3, deterioration 0, zone 2 -> priority score 200
+  Added patient 105 (Ethan Brooks), ESI 5, deterioration 0, zone 4 -> priority score 400
+  Added patient 106 (Farah Khan), ESI 3, deterioration 1, zone 2 -> priority score 170
+  Added patient 107 (Gabriel Ortiz), ESI 4, deterioration 0, zone 3 -> priority score 300
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
+------------------------------------------------------------------
+STEP 2: Initial queue order
+------------------------------------------------------------------
+  Waiting queue in attend order (sorted copy of the heap, O(n log n)):
+  Pos | Patient ID | Name           | ESI | Deterioration | Wait (min) | Zone | Priority Score
+  ----+------------+----------------+-----+---------------+------------+------+---------------
+    1 |        103 | Chen Li        |   2 |             0 |         30 |    1 |             40
+    2 |        101 | Asha Menon     |   3 |             0 |         30 |    2 |            140
+    3 |        106 | Farah Khan     |   3 |             1 |          0 |    2 |            170
+    4 |        104 | Diya Rao       |   3 |             0 |          0 |    2 |            200
+    5 |        102 | Ben Carter     |   4 |             0 |         30 |    3 |            240
+    6 |        107 | Gabriel Ortiz  |   4 |             0 |          0 |    3 |            300
+    7 |        105 | Ethan Brooks   |   5 |             0 |          0 |    4 |            400
+
+  Internal heap array, written as [index] patientID(score):
+  [0] 103(40) [1] 104(200) [2] 101(140) [3] 102(240) [4] 105(400) [5] 106(170) [6] 107(300)
+  (Parent of index i is (i-1)/2. Only parent-before-child order is required, so the array is not fully sorted.)
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
+------------------------------------------------------------------
+STEP 3: Gabriel Ortiz deteriorates (priority update, O(log n))
+------------------------------------------------------------------
+Re-triaged from ESI 4 to ESI 2 with deterioration level 3.
+The index map finds him in O(1); then only his path is repaired.
+  Patient 107 (Gabriel Ortiz)
+    ESI           : 4 -> 2
+    Deterioration : 0 -> 3
+    Waiting time  : 0 min (unchanged)
+    Priority score: 300 -> 10  (lower score, so the heap repaired upward with sift-up)
+    Queue position: 6 -> 1  (moved UP the queue)
+
+  Internal heap array, written as [index] patientID(score):
+  [0] 107(10) [1] 104(200) [2] 103(40) [3] 102(240) [4] 105(400) [5] 106(170) [6] 101(140)
+  (Parent of index i is (i-1)/2. Only parent-before-child order is required, so the array is not fully sorted.)
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
+------------------------------------------------------------------
+STEP 4: Chen Li stabilises (sift-down and the tie-break rule)
+------------------------------------------------------------------
+Re-triaged from ESI 2 to ESI 3, deterioration stays 0.
+  Patient 103 (Chen Li)
+    ESI           : 2 -> 3
+    Deterioration : 0 -> 0
+    Waiting time  : 30 min (unchanged)
+    Priority score: 40 -> 140  (higher score, so the heap repaired downward with sift-down)
+    Queue position: 2 -> 3  (moved DOWN the queue)
+  Tie-break: Asha Menon (score 140, arrival 1) vs Chen Li (score 140, arrival 3).
+  With equal scores, the earlier arrival is attended first.
+
+  Waiting queue in attend order (sorted copy of the heap, O(n log n)):
+  Pos | Patient ID | Name           | ESI | Deterioration | Wait (min) | Zone | Priority Score
+  ----+------------+----------------+-----+---------------+------------+------+---------------
+    1 |        107 | Gabriel Ortiz  |   2 |             3 |          0 |    3 |             10
+    2 |        101 | Asha Menon     |   3 |             0 |         30 |    2 |            140
+    3 |        103 | Chen Li        |   3 |             0 |         30 |    1 |            140
+    4 |        106 | Farah Khan     |   3 |             1 |          0 |    2 |            170
+    5 |        104 | Diya Rao       |   3 |             0 |          0 |    2 |            200
+    6 |        102 | Ben Carter     |   4 |             0 |         30 |    3 |            240
+    7 |        105 | Ethan Brooks   |   5 |             0 |          0 |    4 |            400
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
+------------------------------------------------------------------
+STEP 5: Waiting-time aging (advance time, O(n) for all patients)
+------------------------------------------------------------------
+  Advanced simulated time by 40 min for 7 waiting patient(s).
+    Patient 107: wait now 40 min, score 10 -> -70
+    Patient 101: wait now 70 min, score 140 -> 60
+    Patient 103: wait now 70 min, score 140 -> 60
+    Patient 106: wait now 40 min, score 170 -> 90
+    Patient 104: wait now 40 min, score 200 -> 120
+    Patient 102: wait now 70 min, score 240 -> 160
+    Patient 105: wait now 40 min, score 400 -> 320
+  Cost: all n scores changed, so the heap did O(n) work (n updates + one
+  bottom-up rebuild) and the segment tree did 5 point updates, O(k log k).
+
+  Waiting queue in attend order (sorted copy of the heap, O(n log n)):
+  Pos | Patient ID | Name           | ESI | Deterioration | Wait (min) | Zone | Priority Score
+  ----+------------+----------------+-----+---------------+------------+------+---------------
+    1 |        107 | Gabriel Ortiz  |   2 |             3 |         40 |    3 |            -70
+    2 |        101 | Asha Menon     |   3 |             0 |         70 |    2 |             60
+    3 |        103 | Chen Li        |   3 |             0 |         70 |    1 |             60
+    4 |        106 | Farah Khan     |   3 |             1 |         40 |    2 |             90
+    5 |        104 | Diya Rao       |   3 |             0 |         40 |    2 |            120
+    6 |        102 | Ben Carter     |   4 |             0 |         70 |    3 |            160
+    7 |        105 | Ethan Brooks   |   5 |             0 |         40 |    4 |            320
+
+Note: everyone aged by the same 40 minutes, so all scores dropped by the
+same 80 points and the order among these patients did not change. Aging
+matters when long-waiting patients are compared with NEW arrivals:
+
+  Added patient 108 (Hana Sato), ESI 3, deterioration 0, zone 2 -> priority score 200
+  Ben Carter: ESI 4, waited 70 min, score 160 (position 6)
+  Hana Sato: ESI 3, waited 0 min, score 200 (position 7)
+  Because his score was kept up to date, Ben Carter (less urgent ESI) is not overtaken by the new arrival.
+
+  Waiting queue in attend order (sorted copy of the heap, O(n log n)):
+  Pos | Patient ID | Name           | ESI | Deterioration | Wait (min) | Zone | Priority Score
+  ----+------------+----------------+-----+---------------+------------+------+---------------
+    1 |        107 | Gabriel Ortiz  |   2 |             3 |         40 |    3 |            -70
+    2 |        101 | Asha Menon     |   3 |             0 |         70 |    2 |             60
+    3 |        103 | Chen Li        |   3 |             0 |         70 |    1 |             60
+    4 |        106 | Farah Khan     |   3 |             1 |         40 |    2 |             90
+    5 |        104 | Diya Rao       |   3 |             0 |         40 |    2 |            120
+    6 |        102 | Ben Carter     |   4 |             0 |         70 |    3 |            160
+    7 |        108 | Hana Sato      |   3 |             0 |          0 |    2 |            200
+    8 |        105 | Ethan Brooks   |   5 |             0 |         40 |    4 |            320
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
+------------------------------------------------------------------
+STEP 6: Attend the highest-priority patient (extractMin, O(log n))
+------------------------------------------------------------------
+Zone 3 before:
+  Zone 3 (segment tree range query, O(log k)):
+    Waiting patients     : 2
+    Total capacity       : 3
+    Available capacity   : 1
+    Total waiting time   : 110 min
+    Average waiting time : 55.00 min
+
+  Attending patient 107 (Gabriel Ortiz)
+    ESI 2, deterioration 3, waited 40 min, zone 3, priority score -70
+  Removed from the heap and from zone 3's statistics. 7 patient(s) still waiting.
+
+Zone 3 after (patient count and waiting-time sum reduced):
+  Zone 3 (segment tree range query, O(log k)):
+    Waiting patients     : 1
+    Total capacity       : 3
+    Available capacity   : 2
+    Total waiting time   : 70 min
+    Average waiting time : 70.00 min
+
+  Waiting queue in attend order (sorted copy of the heap, O(n log n)):
+  Pos | Patient ID | Name           | ESI | Deterioration | Wait (min) | Zone | Priority Score
+  ----+------------+----------------+-----+---------------+------------+------+---------------
+    1 |        101 | Asha Menon     |   3 |             0 |         70 |    2 |             60
+    2 |        103 | Chen Li        |   3 |             0 |         70 |    1 |             60
+    3 |        106 | Farah Khan     |   3 |             1 |         40 |    2 |             90
+    4 |        104 | Diya Rao       |   3 |             0 |         40 |    2 |            120
+    5 |        102 | Ben Carter     |   4 |             0 |         70 |    3 |            160
+    6 |        108 | Hana Sato      |   3 |             0 |          0 |    2 |            200
+    7 |        105 | Ethan Brooks   |   5 |             0 |         40 |    4 |            320
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
+------------------------------------------------------------------
+STEP 7: Zone statistics with segment tree range queries
+------------------------------------------------------------------
+  Zones 2 to 4 (segment tree range query, O(log k)):
+    Waiting patients     : 6
+    Total capacity       : 8
+    Available capacity   : 2
+    Total waiting time   : 260 min
+    Average waiting time : 43.33 min
+
+  Zone 2 (segment tree range query, O(log k)):
+    Waiting patients     : 4
+    Total capacity       : 3
+    Available capacity   : 0 (OVER CAPACITY by 1)
+    Total waiting time   : 150 min
+    Average waiting time : 37.50 min
+
+  Zone 5 (segment tree range query, O(log k)):
+    Waiting patients     : 0
+    Total capacity       : 2
+    Available capacity   : 2
+    Total waiting time   : 0 min
+    Average waiting time : n/a (no waiting patients)
+
+  Zones 1 to 5 (segment tree range query, O(log k)):
+    Waiting patients     : 7
+    Total capacity       : 12
+    Available capacity   : 5
+    Total waiting time   : 330 min
+    Average waiting time : 47.14 min
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
+=============== DEMONSTRATION COMPLETE ===============
