@@ -16,16 +16,39 @@ struct ZoneStats {
     int patientCount = 0;      // number of waiting patients
     int totalWaitingTime = 0;  // sum of their waiting minutes
     int totalCapacity = 0;     // number of treatment spaces
+
+    // Most crowded single zone in the range. "Load" = waiting patients - capacity
+    // (positive = over capacity, negative = spare spaces). The tree fills these in
+    // at the leaves; callers only need to set the three fields above.
+    int busiestZone = -1;      // 0-based zone index, -1 for an empty range
+    int busiestLoad = 0;       // load of that zone
 };
 
-// Combines the results of two disjoint ranges. Every field is a sum, so this is
-// associative, and ZoneStats{} (all zeros) is the identity for an empty range.
+// Combines the results of two disjoint ranges (left range comes before right range).
+//   - count, waiting time, capacity: SUM of the two sides
+//   - busiest zone: MAX of the two sides (ties go to the left = lower zone number)
+// Both sum and max are associative, which is all a segment tree needs.
+// ZoneStats{} (zeros, busiestZone = -1) is the identity for an empty range.
 inline ZoneStats combineStats(const ZoneStats& left, const ZoneStats& right) {
     ZoneStats result;
     result.patientCount = left.patientCount + right.patientCount;
     result.totalWaitingTime = left.totalWaitingTime + right.totalWaitingTime;
     result.totalCapacity = left.totalCapacity + right.totalCapacity;
+
+    bool takeRight = left.busiestZone == -1 ||
+                     (right.busiestZone != -1 && right.busiestLoad > left.busiestLoad);
+    const ZoneStats& winner = takeRight ? right : left;
+    result.busiestZone = winner.busiestZone;
+    result.busiestLoad = winner.busiestLoad;
     return result;
+}
+
+// A leaf describes exactly one zone, so that zone is its own "busiest zone".
+inline ZoneStats makeLeaf(const ZoneStats& values, int zoneIndex) {
+    ZoneStats leaf = values;
+    leaf.busiestZone = zoneIndex;
+    leaf.busiestLoad = values.patientCount - values.totalCapacity;
+    return leaf;
 }
 
 class SegmentTree {
@@ -76,7 +99,7 @@ private:
     // Node `node` covers zones [start, end].
     void buildNode(int node, int start, int end, const std::vector<ZoneStats>& zoneValues) {
         if (start == end) {
-            tree[node] = zoneValues[start];  // leaf = one zone
+            tree[node] = makeLeaf(zoneValues[start], start);  // leaf = one zone
             return;
         }
         int mid = (start + end) / 2;
@@ -89,7 +112,7 @@ private:
     // recombines each node on the way back up. No other node is touched.
     void updateNode(int node, int start, int end, int zoneIndex, const ZoneStats& newValues) {
         if (start == end) {
-            tree[node] = newValues;
+            tree[node] = makeLeaf(newValues, start);
             return;
         }
         int mid = (start + end) / 2;

@@ -145,10 +145,47 @@ void testHeapUpdates() {
     check(!heap.advanceWaitingTime(-5), "negative time rejected");
 }
 
-// Random mix of insert / update / extract / advance, checked after every step
+void testHeapRemove() {
+    std::cout << "Heap removePatient (delete from the middle)\n";
+    IndexedMinHeap heap;
+    // Inserted in an order that needs no swaps, so the array layout is known:
+    //   [0] A=1 (0)   [1] B=2 (300)   [2] C=3 (100)   [3] D=4 (400)   [4] E=5 (400)   [5] F=6 (200)
+    heap.insert(makePatient(1, 1, 0, 1, 1));
+    heap.insert(makePatient(2, 4, 0, 1, 2));
+    heap.insert(makePatient(3, 2, 0, 1, 3));
+    heap.insert(makePatient(4, 5, 0, 1, 4));
+    heap.insert(makePatient(5, 5, 0, 1, 5));
+    heap.insert(makePatient(6, 3, 0, 1, 6));
+    check(heap.indexOfPatient(4) == 3 && heap.indexOfPatient(6) == 5, "known starting layout");
+
+    // Remove D at [3]. Last leaf F (200) fills the hole; its new parent B (300) is
+    // worse, so F must move UP. extractMin never needs this direction.
+    Patient out;
+    check(heap.removePatient(4, out) && out.id == 4, "remove D from the middle");
+    check(heap.indexOfPatient(6) == 1 && heap.indexOfPatient(2) == 3, "moved leaf F sifted UP to [1]");
+    check(heap.lastOperationSwaps() == 1, "sift-up removal made 1 swap");
+    check(heap.isValid() && !heap.contains(4), "heap valid, D gone from map");
+
+    // Remove the root A by ID. Last leaf E (400) fills [0] and must move DOWN.
+    check(heap.removePatient(1, out) && out.id == 1, "remove root A by ID");
+    check(heap.indexOfPatient(3) == 0 && heap.indexOfPatient(5) == 2, "moved leaf E sifted DOWN to [2]");
+    check(heap.isValid(), "heap valid after sift-down removal");
+
+    // Remove the patient who IS the last leaf: nothing needs repairing.
+    int lastId = heap.getAllPatients().back().id;
+    check(heap.removePatient(lastId, out) && heap.lastOperationSwaps() == 0, "remove last leaf, 0 swaps");
+    check(heap.isValid() && heap.size() == 3, "heap valid with 3 patients");
+
+    check(!heap.removePatient(99, out), "remove unknown ID rejected");
+    check(heap.size() == 3, "failed remove changed nothing");
+}
+
+// Random mix of insert / update / remove / extract / advance, checked after every step
 // against a plain vector scanned by brute force.
 void testHeapRandomised() {
     std::cout << "Heap randomised comparison with brute force (2000 operations)\n";
+    bool allSwapsWithinHeight = true;
+    bool allSortedMatch = true;
     std::mt19937 rng(12345);
     IndexedMinHeap heap;
     std::vector<Patient> reference;
@@ -167,7 +204,7 @@ void testHeapRandomised() {
             heap.insert(p);
             p.priorityScore = calculatePriorityScore(p);
             reference.push_back(p);
-        } else if (operation < 7) {
+        } else if (operation < 6) {
             Patient& target = reference[rng() % reference.size()];
             int newEsi = 1 + static_cast<int>(rng() % 5);
             int newDet = static_cast<int>(rng() % 5);
@@ -175,6 +212,14 @@ void testHeapRandomised() {
             target.esi = newEsi;
             target.deteriorationLevel = newDet;
             target.priorityScore = calculatePriorityScore(target);
+        } else if (operation < 7) {
+            // Remove a random patient from anywhere in the heap.
+            size_t position = rng() % reference.size();
+            Patient out;
+            if (!heap.removePatient(reference[position].id, out) || out.id != reference[position].id) {
+                allExtractsMatch = false;
+            }
+            reference.erase(reference.begin() + static_cast<long>(position));
         } else if (operation < 9) {
             int expectedId = bestIdByScan(reference);
             Patient out;
@@ -192,6 +237,16 @@ void testHeapRandomised() {
         }
 
         if (!heap.isValid() || heap.size() != static_cast<int>(reference.size())) allValid = false;
+        // One sift (insert / update / remove / extract) never swaps more than the tree height.
+        if (operation < 9 && heap.lastOperationSwaps() > heap.height()) allSwapsWithinHeight = false;
+        if (step % 50 == 0) {
+            std::vector<Patient> expected = reference;
+            std::sort(expected.begin(), expected.end(), isHigherPriority);
+            std::vector<Patient> actual = heap.getAllPatientsSorted();
+            bool same = expected.size() == actual.size();
+            for (size_t i = 0; same && i < expected.size(); ++i) same = expected[i].id == actual[i].id;
+            if (!same || !heap.isValid()) allSortedMatch = false;
+        }
         for (const Patient& r : reference) {
             Patient fromHeap;
             if (!heap.getPatient(r.id, fromHeap) || fromHeap.priorityScore != r.priorityScore ||
@@ -203,6 +258,8 @@ void testHeapRandomised() {
     check(allValid, "heap property, index map and size valid after every operation");
     check(allExtractsMatch, "every extractMin matched the brute-force minimum");
     check(allLookupsMatch, "every getPatient matched the reference record");
+    check(allSwapsWithinHeight, "every single-patient operation made at most height swaps");
+    check(allSortedMatch, "heap-sort display matched std::sort and left the heap intact");
 }
 
 void testSegmentTree() {
@@ -224,6 +281,13 @@ void testSegmentTree() {
     r = tree.query(0, 4);
     check(r.patientCount == 7 && r.totalWaitingTime == 330 && r.totalCapacity == 12,
           "all zones: 7 patients, 330 min, capacity 12");
+
+    // Loads (patients - capacity): zone1 -1, zone2 +1, zone3 -2, zone4 -1, zone5 -2
+    check(r.busiestZone == 1 && r.busiestLoad == 1, "all zones: busiest is index 1 (zone 2), load +1");
+    r = tree.query(2, 4);
+    check(r.busiestZone == 3 && r.busiestLoad == -1, "zones 3-5: busiest is index 3 (zone 4), load -1");
+    r = tree.query(4, 4);
+    check(r.busiestZone == 4 && r.busiestLoad == -2, "single zone is its own busiest zone");
 
     check(tree.update(2, ZoneStats{3, 90, 3}), "point update zone index 2");
     r = tree.query(1, 3);
@@ -254,23 +318,33 @@ void testSegmentTree() {
                 for (int right = left; right < size; ++right) {
                     ZoneStats expected;
                     for (int i = left; i <= right; ++i) expected = combineStats(expected, values[i]);
+                    // Brute-force busiest zone: highest load, earliest zone wins ties.
+                    int bestZone = left;
+                    for (int i = left + 1; i <= right; ++i) {
+                        if (values[i].patientCount - values[i].totalCapacity >
+                            values[bestZone].patientCount - values[bestZone].totalCapacity) {
+                            bestZone = i;
+                        }
+                    }
                     ZoneStats actual = randomTree.query(left, right);
                     if (actual.patientCount != expected.patientCount ||
                         actual.totalWaitingTime != expected.totalWaitingTime ||
-                        actual.totalCapacity != expected.totalCapacity) {
+                        actual.totalCapacity != expected.totalCapacity ||
+                        actual.busiestZone != bestZone) {
                         allMatch = false;
                     }
                 }
             }
         }
     }
-    check(allMatch, "every range query matched brute-force sums (sizes 1-9)");
+    check(allMatch, "every range query matched brute-force sums and busiest zone (sizes 1-9)");
 }
 
 int main() {
     testPriorityFormula();
     testHeapBasics();
     testHeapUpdates();
+    testHeapRemove();
     testHeapRandomised();
     testSegmentTree();
     std::cout << "\nPassed: " << passed << "   Failed: " << failed << "\n";

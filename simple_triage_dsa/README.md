@@ -20,8 +20,8 @@ This project answers them with two classic data structures:
 
 | Question | Data structure | Key operations |
 |---|---|---|
-| Next patient, with priorities that change | **Indexed binary min-heap** (`IndexedMinHeap.h`) | insert, extractMin, update priority |
-| Statistics for a range of zones | **Segment tree** (`SegmentTree.h`) | point update, range query |
+| Next patient, with priorities that change | **Indexed binary min-heap** (`IndexedMinHeap.h`) | insert, extractMin, update priority, remove by ID |
+| Statistics for a range of zones | **Segment tree** (`SegmentTree.h`) | point update, range query (sums + most crowded zone) |
 
 ---
 
@@ -34,6 +34,7 @@ simple_triage_dsa/
 ├── IndexedMinHeap.h   The binary min-heap + patient-ID -> index map (written by hand)
 ├── SegmentTree.h      Segment tree over the 5 zones (count, waiting time, capacity)
 ├── README.md          This file
+├── PROFESSOR_REVIEW.md  Review suggestions, what was changed and how to explain it
 ├── test_patients.txt  Test data set loaded by menu option 1 (editable)
 ├── sample_output.txt  Real output of `triage_demo --demo` (captured, not typed)
 └── tests.cpp          Extra: unit tests for the heap and segment tree
@@ -82,13 +83,15 @@ cmd /c ".\triage_demo.exe --demo > sample_output.txt"
 
 ```text
 ========== EMERGENCY TRIAGE DSA DEMO ==========
-1. Add a patient
+1. Add a patient (manually or load test data file)
 2. Update patient condition
 3. Advance simulated time
 4. Attend to the highest-priority patient
 5. Display waiting queue
 6. Query zone statistics
 7. Run predefined demonstration
+8. Remove a patient (left without being seen)
+9. Show heap as a tree + ID->index map
 0. Exit
 ```
 
@@ -98,9 +101,15 @@ cmd /c ".\triage_demo.exe --demo > sample_output.txt"
 | 2 | ID, new ESI, new deterioration | Heap `updatePatient`. Shows the old and new score, the old and new queue position, and whether the patient moved up or down. Waiting time is not changed. |
 | 3 | Minutes passed (1-1440) | Every waiting patient's wait increases, every score is recalculated, the heap is rebuilt, and each zone's waiting-time sum is updated. |
 | 4 | – | Heap `extractMin`. The patient is removed from their zone's count and waiting-time sum. On an empty queue it prints a message. |
-| 5 | – | Table of all waiting patients in attend order (from a sorted **copy**, so the heap is untouched). |
-| 6 | From zone, to zone | Segment tree range query: patients, capacity, available capacity (or how far over capacity), total and average wait. |
+| 5 | – | Table of all waiting patients in attend order (heap sort on a **copy**, so the heap is untouched). |
+| 6 | From zone, to zone | Segment tree range query: patients, capacity, available capacity (or how far over capacity), total and average wait, and for multi-zone ranges the most crowded zone. |
 | 7 | – | Runs the predefined demonstration on a fresh simulation, so your menu data is kept. |
+| 8 | ID of the patient who left | Heap `removePatient` from anywhere in the heap. Shows where the last leaf moved (up or down). The zone statistics are reduced. |
+| 9 | – | Prints the heap array level by level as a tree, plus the ID -> index map. |
+
+Every heap operation prints a note such as `[heap: 2 swap(s), tree height 3]`. A single sift
+never makes more swaps than the tree height, which is floor(log2 n). This is the O(log n)
+bound you can see for yourself.
 
 ### Test data file (`test_patients.txt`)
 
@@ -168,7 +177,8 @@ To update a patient (for example, "patient 107 has deteriorated") we first need 
 **where** that patient is in the array. Without help, that is a linear search: O(n).
 
 `std::unordered_map<int, int> indexOf` stores `patientId -> current array index`, so the
-lookup is O(1) on average and the whole update is O(log n).
+lookup is O(1) on average and the whole update is O(log n). The same lookup makes
+`removePatient(id)` possible.
 
 The map must change whenever a patient moves. All movement goes through one function,
 `swapPatients(i, j)`, which swaps the two slots **and** updates both map entries. That is
@@ -193,6 +203,16 @@ why the map never goes out of date. `insert` adds a map entry and `extractMin` e
 His score drops to 10. Parent of 6 is index 2 (score 140), so they swap. Parent of 2 is
 index 0 (score 40), so they swap again. He is now at the root, after 2 swaps (tree height 2).
 
+### Remove any patient: `removePatient(id)` – O(log n)
+1. Find the hole with the map.
+2. Move the last leaf into the hole, `pop_back`, erase the ID from the map.
+3. `repairPosition(hole)`: the moved leaf came from a **different subtree**, so it may be
+   better than its new parent (sift **up**) or worse than its new children (sift **down**).
+   `extractMin` is the special case where the hole is the root, so only sift-down is possible.
+
+Step 7 of the demo shows both: when Diya leaves, leaf 108 moves **down**; when Ethan leaves,
+leaf 106 moves **up**.
+
 ### Advance time for everyone: `advanceWaitingTime(minutes)` – O(n)
 Every patient's waiting time and score changes, so this is **not** one O(log n) update.
 The code updates all n scores in one pass, then calls `buildHeap()`, the bottom-up
@@ -201,7 +221,8 @@ Building a heap bottom-up costs O(n) in total. (Calling `updatePatient` once per
 would also work, but it costs O(n log n).)
 
 ### Display: `getAllPatientsSorted()` – O(n log n)
-Makes a copy of the array and sorts the copy. The real heap is never reordered.
+**Heap sort:** copy the whole heap object (O(n)), then call `extractMin` on the copy n times.
+The real heap is never reordered.
 
 ### Why aging is still needed even though the order seldom changes
 Everyone waiting ages by the same number of minutes, so all scores fall by roughly the
@@ -215,16 +236,20 @@ were stale, new arrivals would keep overtaking patients who have waited a long t
 
 ## 7. How the segment tree combines zone statistics
 
-Each **leaf** is one zone and each **internal node** is the combination of its two children.
-Every field is a sum:
+Each **leaf** is one zone and each **internal node** is the combination of its two children:
 
 ```cpp
-struct ZoneStats { int patientCount; int totalWaitingTime; int totalCapacity; };
+struct ZoneStats { int patientCount; int totalWaitingTime; int totalCapacity;   // summed
+                   int busiestZone;  int busiestLoad; };                         // max
 
 combineStats(a, b) = { a.patientCount + b.patientCount,
                        a.totalWaitingTime + b.totalWaitingTime,
-                       a.totalCapacity + b.totalCapacity }
+                       a.totalCapacity + b.totalCapacity,
+                       the side with the larger load (patients - capacity), left side on ties }
 ```
+
+A segment tree works for **any associative** combine operation, not only sums. The
+"most crowded zone" field shows this with a max (argmax). See `PROFESSOR_REVIEW.md`.
 
 Tree for k = 5 zones (internal indices 0-4, which are zones 1-5 in the menu):
 
@@ -258,12 +283,13 @@ The program then works out:
 * `averageWait = totalWaitingTime / patientCount`, or "n/a" when the count is 0 (no division by zero).
 
 ### Keeping the tree in sync with the heap
-The heap is the authoritative list of waiting patients. The tree is updated in exactly three places:
+The heap is the authoritative list of waiting patients. The tree is updated in exactly four places:
 
 | Event | Zone change |
 |---|---|
 | Patient added (option 1) | that zone: count +1, waiting time +0 |
 | Patient attended (option 4) | that zone: count −1, waiting time −(their wait) |
+| Patient left without being seen (option 8) | that zone: count −1, waiting time −(their wait) |
 | Time advanced by m minutes (option 3) | every zone: waiting time + m × (its patient count) |
 
 Changing a patient's condition (option 2) does not change any zone statistics.
@@ -282,9 +308,10 @@ n = number of waiting patients, k = number of zones (5 here).
 | Insert patient | `IndexedMinHeap::insert` | **O(log n)** |
 | Attend next patient | `IndexedMinHeap::extractMin` | **O(log n)** |
 | Update ONE patient's priority | `IndexedMinHeap::updatePatient` | **O(log n)** (O(1) average map lookup + one sift) |
+| Remove any patient by ID | `IndexedMinHeap::removePatient` | **O(log n)** |
 | Look up a patient by ID | `IndexedMinHeap::getPatient` | O(1) average |
 | Advance time for ALL patients | `advanceWaitingTime` + zone updates | **O(n)** heap + O(k log k) tree, *not* O(log n) |
-| Display queue (sorted copy) | `getAllPatientsSorted` | O(n log n) |
+| Display queue (heap sort on a copy) | `getAllPatientsSorted` | O(n log n) |
 | Zone point update | `SegmentTree::update` | **O(log k)** |
 | Zone range query | `SegmentTree::query` | **O(log k)** |
 | Build segment tree | `SegmentTree::build` | O(k) |
@@ -299,12 +326,14 @@ least O(n), because every waiting time has to be written.
 
 ## 9. Testing that was performed
 
-* `tests.cpp` (63 checks, all passing): formula and tie-break, insert/extract order,
+* `tests.cpp` (80 checks, all passing): formula and tie-break, insert/extract order,
   duplicate and invalid inputs rejected without changes, updates up and down, aging,
-  an empty heap, 2000 random operations checked after every step against a brute-force
-  scan (heap property, ID→index map, size, every lookup, every extracted minimum), and
-  every possible range of segment trees with 1-9 zones checked against brute-force sums
-  after random updates.
+  an empty heap, removal from the middle (sift-up case, sift-down case, last leaf, unknown
+  ID), 2000 random operations including removals checked after every step against a
+  brute-force scan (heap property, ID→index map, size, every lookup, every extracted
+  minimum, swaps never above the tree height, heap-sort display equal to `std::sort`), and
+  every possible range of segment trees with 1-9 zones checked against brute-force sums and
+  brute-force busiest zone after random updates.
 * Scripted menu session: adding and displaying patients, a duplicate ID, invalid ESI,
   deterioration and zone values, an empty name, non-numeric input, a condition update, an
   update of an unknown ID, advancing time, invalid minutes, single-zone, multi-zone and
@@ -321,8 +350,7 @@ least O(n), because every waiting time has to be written.
   segment tree shows the technique, and it becomes useful when k is large.
 * `unordered_map` lookups are O(1) **on average**. In the worst case (many hash collisions) they are slower.
 * Advancing time visits every patient (O(n)). See the future extensions below.
-* A patient's zone cannot be changed, and patients can only leave by being attended
-  (there is no "left without being seen" option).
+* A patient's zone cannot be changed.
 * Data is kept only in memory; nothing is saved between runs.
 * Names longer than 14 characters make the queue table misaligned.
 * An ID can be reused once its patient has been attended, because the heap only holds patients who are still waiting.
@@ -351,17 +379,21 @@ None of the items below are in the code. They are possible next steps:
 2. **(20 s) Formula.** Show the formula in `Patient.h`, say that a lower score goes first,
    and explain the arrival-order tie-break. Do the Farah Khan example: 200 − 30 − 80 = 90.
 3. **(15 s) Run** `.\triage_demo.exe --demo`. Steps 1–2: the patients arrive, then compare
-   the sorted queue with the raw heap array to show that a heap is not a sorted list.
-4. **(25 s) Step 3, priority update.** Gabriel's score goes from 300 to 10. "The index map
+   the sorted queue with the heap tree view to show that a heap is not a sorted list.
+4. **(20 s) Step 3, priority update.** Gabriel's score goes from 300 to 10. "The index map
    finds him at index 6 in O(1). `siftUp` swaps him with index 2, then index 0, so the update
-   is O(log n)." Show `updatePatient`, `repairPosition` and `swapPatients`.
+   is O(log n)." Point at `[heap: 2 swap(s), tree height 2]`. Show `updatePatient`,
+   `repairPosition` and `swapPatients`.
 5. **(10 s) Step 4.** Chen's score rises, so `siftDown` runs. The tie with Asha is broken by arrival order.
-6. **(15 s) Step 5, aging.** "Every score changes, so this is O(n): one pass plus a bottom-up
+6. **(10 s) Step 5, aging.** "Every score changes, so this is O(n): one pass plus a bottom-up
    `buildHeap`, not O(log n)." Ben, who has waited 70 minutes, is not overtaken by the new
    ESI-3 arrival.
-7. **(10 s) Step 6.** `extractMin` attends Gabriel, and zone 3's count and waiting sum drop.
-8. **(10 s) Step 7, segment tree.** Zones 2–4 are combined from three nodes in O(log k).
-   Zone 2 is over capacity by 1. Zone 5 is empty, so there is no division by zero.
-9. **(5 s) Close.** The `[check]` lines confirm the heap property, the index map and the
+7. **(5 s) Step 6.** `extractMin` attends Gabriel, and zone 3's count and waiting sum drop.
+8. **(15 s) Step 7, removal.** "Deleting from the middle: the last leaf fills the hole and
+   can go down (Diya) **or up** (Ethan), so I call `repairPosition`, not just `siftDown`."
+9. **(10 s) Step 8, segment tree.** Zones 2–4 are combined from three nodes in O(log k).
+   Zone 2 is over capacity by 1 and is reported as the most crowded zone (a max merge).
+   Zone 5 is empty, so there is no division by zero.
+10. **(5 s) Close.** The `[check]` lines confirm the heap property, the index map and the
    zone statistics after every step. Future work: Fibonacci and d-ary heaps, benchmarks,
    Hopcroft–Karp, and persistent segment trees.

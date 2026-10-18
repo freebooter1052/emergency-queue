@@ -14,7 +14,6 @@
 // It lets us find any patient in O(1) instead of scanning the array in O(n),
 // which is what makes updatePatient() O(log n).
 
-#include <algorithm>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -35,6 +34,7 @@ public:
 
         // Place the patient in the first free leaf, then move it up while it
         // beats its parent. Everything else already satisfied the heap property.
+        swapsInLastOperation = 0;
         heap.push_back(patient);
         int newIndex = size() - 1;
         indexOf[patient.id] = newIndex;
@@ -55,8 +55,32 @@ public:
         swapPatients(0, size() - 1);
         heap.pop_back();
         indexOf.erase(removedPatient.id);
+        swapsInLastOperation = 0;  // count only the sift swaps below
         if (!heap.empty()) {
             siftDown(0);
+        }
+        return true;
+    }
+
+    // Removes ANY waiting patient by ID (e.g. "left without being seen"). O(log n).
+    // Same idea as extractMin, but the hole can be anywhere in the array:
+    // move the last leaf into the hole, then repair. Unlike extractMin, the moved
+    // element may have to go UP (it came from a different subtree), so we use
+    // repairPosition(), not just siftDown().
+    bool removePatient(int patientId, Patient& removedPatient) {
+        auto found = indexOf.find(patientId);
+        if (found == indexOf.end()) {
+            return false;
+        }
+        int index = found->second;
+        removedPatient = heap[index];
+
+        swapPatients(index, size() - 1);
+        heap.pop_back();
+        indexOf.erase(patientId);
+        swapsInLastOperation = 0;  // count only the repair swaps below
+        if (index < size()) {  // false when the removed patient was the last leaf
+            repairPosition(index);
         }
         return true;
     }
@@ -70,6 +94,7 @@ public:
             !isValidDeterioration(newDeteriorationLevel)) {
             return false;
         }
+        swapsInLastOperation = 0;
         int index = found->second;
         heap[index].esi = newESI;
         heap[index].deteriorationLevel = newDeteriorationLevel;
@@ -87,6 +112,7 @@ public:
         if (minutes < 0) {
             return false;
         }
+        swapsInLastOperation = 0;
         for (Patient& patient : heap) {
             patient.waitingMinutes += minutes;
             patient.priorityScore = calculatePriorityScore(patient);
@@ -115,11 +141,40 @@ public:
         return heap;
     }
 
-    // Sorted COPY for display. O(n log n). The real heap is not modified.
+    // Patients in attend order, produced by HEAP SORT on a copy. O(n log n).
+    // The copy is popped n times with extractMin; the real heap is not modified.
     std::vector<Patient> getAllPatientsSorted() const {
-        std::vector<Patient> sortedCopy = heap;
-        std::sort(sortedCopy.begin(), sortedCopy.end(), isHigherPriority);
-        return sortedCopy;
+        IndexedMinHeap copy = *this;  // O(n) copy of the array and the map
+        std::vector<Patient> ordered;
+        ordered.reserve(heap.size());
+        Patient next;
+        while (copy.extractMin(next)) {
+            ordered.push_back(next);
+        }
+        return ordered;
+    }
+
+    // Current array index of a patient, or -1 if not waiting. O(1) average.
+    // Used to print the ID -> index map.
+    int indexOfPatient(int patientId) const {
+        auto found = indexOf.find(patientId);
+        return found == indexOf.end() ? -1 : found->second;
+    }
+
+    // Height of the tree = number of levels below the root = floor(log2 n).
+    // A single siftUp or siftDown can never make more swaps than this.
+    int height() const {
+        int levels = 0;
+        for (int n = size(); n > 1; n /= 2) {
+            ++levels;
+        }
+        return levels;
+    }
+
+    // Number of swaps made by the most recent insert / extractMin / removePatient /
+    // updatePatient / advanceWaitingTime. Lets us SEE that the work is O(log n).
+    int lastOperationSwaps() const {
+        return swapsInLastOperation;
     }
 
     bool isEmpty() const {
@@ -154,6 +209,7 @@ public:
 private:
     std::vector<Patient> heap;             // the binary heap stored as an array
     std::unordered_map<int, int> indexOf;  // patient ID -> index in `heap`
+    int swapsInLastOperation = 0;          // instrumentation only, see lastOperationSwaps()
 
     static int parentOf(int index) { return (index - 1) / 2; }
     static int leftChildOf(int index) { return 2 * index + 1; }
@@ -162,6 +218,9 @@ private:
     // Swaps two heap slots AND updates the index map for both patients.
     // Every movement in the heap goes through here, so the map never goes stale.
     void swapPatients(int i, int j) {
+        if (i != j) {
+            ++swapsInLastOperation;
+        }
         std::swap(heap[i], heap[j]);
         indexOf[heap[i].id] = i;
         indexOf[heap[j].id] = j;

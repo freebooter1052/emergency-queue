@@ -2,15 +2,15 @@
 =============== PREDEFINED TRIAGE DEMONSTRATION ===============
 All patients are fictional. The priority formula is a teaching example,
 not a validated medical triage formula. Lower score = attended earlier.
-Zone capacities:  zone 1 = 2  zone 2 = 3  zone 3 = 3  zone 4 = 2  zone 5 = 2
+Zone capacities:  zone 1 = 2  zone 2 = 2  zone 3 = 3  zone 4 = 2  zone 5 = 2
 
 ------------------------------------------------------------------
 STEP 1: Patients arrive in two waves (heap insert, O(log n) each)
 ------------------------------------------------------------------
 First wave arrives at minute 0:
-  Added patient 101 (Asha Menon), ESI 3, deterioration 0, zone 2 -> priority score 200
-  Added patient 102 (Ben Carter), ESI 4, deterioration 0, zone 3 -> priority score 300
-  Added patient 103 (Chen Li), ESI 2, deterioration 0, zone 1 -> priority score 100
+  Added patient 101 (Asha Menon), ESI 3, deterioration 0, zone 2 -> priority score 200  [heap: 0 swap(s), tree height 0]
+  Added patient 102 (Ben Carter), ESI 4, deterioration 0, zone 3 -> priority score 300  [heap: 0 swap(s), tree height 1]
+  Added patient 103 (Chen Li), ESI 2, deterioration 0, zone 1 -> priority score 100  [heap: 1 swap(s), tree height 1]
 
 30 minutes pass before the second wave arrives:
   Advanced simulated time by 30 min for 3 waiting patient(s).
@@ -18,13 +18,13 @@ First wave arrives at minute 0:
     Patient 101: wait now 30 min, score 200 -> 140
     Patient 102: wait now 30 min, score 300 -> 240
   Cost: all n scores changed, so the heap did O(n) work (n updates + one
-  bottom-up rebuild) and the segment tree did 5 point updates, O(k log k).
+  bottom-up rebuild, 0 swap(s) this time) and the segment tree did 5 point updates, O(k log k).
 
 Second wave arrives at minute 30:
-  Added patient 104 (Diya Rao), ESI 3, deterioration 0, zone 2 -> priority score 200
-  Added patient 105 (Ethan Brooks), ESI 5, deterioration 0, zone 4 -> priority score 400
-  Added patient 106 (Farah Khan), ESI 3, deterioration 1, zone 2 -> priority score 170
-  Added patient 107 (Gabriel Ortiz), ESI 4, deterioration 0, zone 3 -> priority score 300
+  Added patient 104 (Diya Rao), ESI 3, deterioration 0, zone 2 -> priority score 200  [heap: 1 swap(s), tree height 2]
+  Added patient 105 (Ethan Brooks), ESI 5, deterioration 0, zone 4 -> priority score 400  [heap: 0 swap(s), tree height 2]
+  Added patient 106 (Farah Khan), ESI 3, deterioration 1, zone 2 -> priority score 170  [heap: 0 swap(s), tree height 2]
+  Added patient 107 (Gabriel Ortiz), ESI 4, deterioration 0, zone 3 -> priority score 300  [heap: 0 swap(s), tree height 2]
   [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
 
 ------------------------------------------------------------------
@@ -41,9 +41,13 @@ STEP 2: Initial queue order
     6 |        107 | Gabriel Ortiz  |   4 |             0 |          0 |    3 |            300
     7 |        105 | Ethan Brooks   |   5 |             0 |          0 |    4 |            400
 
-  Internal heap array, written as [index] patientID(score):
-  [0] 103(40) [1] 104(200) [2] 101(140) [3] 102(240) [4] 105(400) [5] 106(170) [6] 107(300)
-  (Parent of index i is (i-1)/2. Only parent-before-child order is required, so the array is not fully sorted.)
+  Internal heap array drawn as a tree, written as [index] patientID(score):
+    Level 0:  [0] 103(40)
+    Level 1:  [1] 104(200)  [2] 101(140)
+    Level 2:  [3] 102(240)  [4] 105(400)  [5] 106(170)  [6] 107(300)
+    Children of [i] are [2i+1] and [2i+2]. Each parent comes before its children,
+    but the array is not fully sorted.
+  ID -> index map:  101->2  102->3  103->0  104->1  105->4  106->5  107->6
   [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
 
 ------------------------------------------------------------------
@@ -56,11 +60,16 @@ The index map finds him in O(1); then only his path is repaired.
     Deterioration : 0 -> 3
     Waiting time  : 0 min (unchanged)
     Priority score: 300 -> 10  (lower score, so the heap repaired upward with sift-up)
+    Heap work     : [heap: 2 swap(s), tree height 2]
     Queue position: 6 -> 1  (moved UP the queue)
 
-  Internal heap array, written as [index] patientID(score):
-  [0] 107(10) [1] 104(200) [2] 103(40) [3] 102(240) [4] 105(400) [5] 106(170) [6] 101(140)
-  (Parent of index i is (i-1)/2. Only parent-before-child order is required, so the array is not fully sorted.)
+  Internal heap array drawn as a tree, written as [index] patientID(score):
+    Level 0:  [0] 107(10)
+    Level 1:  [1] 104(200)  [2] 103(40)
+    Level 2:  [3] 102(240)  [4] 105(400)  [5] 106(170)  [6] 101(140)
+    Children of [i] are [2i+1] and [2i+2]. Each parent comes before its children,
+    but the array is not fully sorted.
+  ID -> index map:  101->6  102->3  103->2  104->1  105->4  106->5  107->0
   [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
 
 ------------------------------------------------------------------
@@ -72,6 +81,7 @@ Re-triaged from ESI 2 to ESI 3, deterioration stays 0.
     Deterioration : 0 -> 0
     Waiting time  : 30 min (unchanged)
     Priority score: 40 -> 140  (higher score, so the heap repaired downward with sift-down)
+    Heap work     : [heap: 1 swap(s), tree height 2]
     Queue position: 2 -> 3  (moved DOWN the queue)
   Tie-break: Asha Menon (score 140, arrival 1) vs Chen Li (score 140, arrival 3).
   With equal scores, the earlier arrival is attended first.
@@ -100,7 +110,7 @@ STEP 5: Waiting-time aging (advance time, O(n) for all patients)
     Patient 102: wait now 70 min, score 240 -> 160
     Patient 105: wait now 40 min, score 400 -> 320
   Cost: all n scores changed, so the heap did O(n) work (n updates + one
-  bottom-up rebuild) and the segment tree did 5 point updates, O(k log k).
+  bottom-up rebuild, 0 swap(s) this time) and the segment tree did 5 point updates, O(k log k).
 
   Waiting queue in attend order (sorted copy of the heap, O(n log n)):
   Pos | Patient ID | Name           | ESI | Deterioration | Wait (min) | Zone | Priority Score
@@ -117,7 +127,7 @@ Note: everyone aged by the same 40 minutes, so all scores dropped by the
 same 80 points and the order among these patients did not change. Aging
 matters when long-waiting patients are compared with NEW arrivals:
 
-  Added patient 108 (Hana Sato), ESI 3, deterioration 0, zone 2 -> priority score 200
+  Added patient 108 (Hana Sato), ESI 3, deterioration 0, zone 2 -> priority score 200  [heap: 0 swap(s), tree height 3]
   Ben Carter: ESI 4, waited 70 min, score 160 (position 6)
   Hana Sato: ESI 3, waited 0 min, score 200 (position 7)
   Because his score was kept up to date, Ben Carter (less urgent ESI) is not overtaken by the new arrival.
@@ -148,7 +158,7 @@ Zone 3 before:
 
   Attending patient 107 (Gabriel Ortiz)
     ESI 2, deterioration 3, waited 40 min, zone 3, priority score -70
-  Removed from the heap and from zone 3's statistics. 7 patient(s) still waiting.
+  Removed from the heap and from zone 3's statistics. 7 patient(s) still waiting.  [heap: 2 swap(s), tree height 2]
 
 Zone 3 after (patient count and waiting-time sum reduced):
   Zone 3 (segment tree range query, O(log k)):
@@ -171,21 +181,61 @@ Zone 3 after (patient count and waiting-time sum reduced):
   [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
 
 ------------------------------------------------------------------
-STEP 7: Zone statistics with segment tree range queries
+STEP 7: Patients leave without being seen (removePatient, O(log n))
+------------------------------------------------------------------
+Removing from the MIDDLE of the heap: the last leaf fills the hole, then it may
+need to move DOWN or UP. extractMin only ever needs to move down.
+
+  Internal heap array drawn as a tree, written as [index] patientID(score):
+    Level 0:  [0] 101(60)
+    Level 1:  [1] 104(120)  [2] 103(60)
+    Level 2:  [3] 102(160)  [4] 105(320)  [5] 106(90)  [6] 108(200)
+    Children of [i] are [2i+1] and [2i+2]. Each parent comes before its children,
+    but the array is not fully sorted.
+  ID -> index map:  101->0  102->3  103->2  104->1  105->4  106->5  108->6
+
+  Patient 104 (Diya Rao, score 120) left without being seen. Hole at index [1].
+  Last leaf 108 filled the hole and moved DOWN to [3] (sift-down).
+  Removed from the heap and from zone 2's statistics. 6 patient(s) still waiting.  [heap: 1 swap(s), tree height 2]
+
+  Internal heap array drawn as a tree, written as [index] patientID(score):
+    Level 0:  [0] 101(60)
+    Level 1:  [1] 102(160)  [2] 103(60)
+    Level 2:  [3] 108(200)  [4] 105(320)  [5] 106(90)
+    Children of [i] are [2i+1] and [2i+2]. Each parent comes before its children,
+    but the array is not fully sorted.
+  ID -> index map:  101->0  102->1  103->2  105->4  106->5  108->3
+
+  Patient 105 (Ethan Brooks, score 320) left without being seen. Hole at index [4].
+  Last leaf 106 filled the hole and moved UP to [1] (sift-up).
+  Removed from the heap and from zone 4's statistics. 5 patient(s) still waiting.  [heap: 1 swap(s), tree height 2]
+
+  Internal heap array drawn as a tree, written as [index] patientID(score):
+    Level 0:  [0] 101(60)
+    Level 1:  [1] 106(90)  [2] 103(60)
+    Level 2:  [3] 108(200)  [4] 102(160)
+    Children of [i] are [2i+1] and [2i+2]. Each parent comes before its children,
+    but the array is not fully sorted.
+  ID -> index map:  101->0  102->4  103->2  106->1  108->3
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
+------------------------------------------------------------------
+STEP 8: Zone statistics with segment tree range queries
 ------------------------------------------------------------------
   Zones 2 to 4 (segment tree range query, O(log k)):
-    Waiting patients     : 6
-    Total capacity       : 8
-    Available capacity   : 2
-    Total waiting time   : 260 min
-    Average waiting time : 43.33 min
+    Waiting patients     : 4
+    Total capacity       : 7
+    Available capacity   : 3
+    Total waiting time   : 180 min
+    Average waiting time : 45.00 min
+    Most crowded zone    : zone 2 (3 waiting / 2 capacity, load +1)
 
   Zone 2 (segment tree range query, O(log k)):
-    Waiting patients     : 4
-    Total capacity       : 3
+    Waiting patients     : 3
+    Total capacity       : 2
     Available capacity   : 0 (OVER CAPACITY by 1)
-    Total waiting time   : 150 min
-    Average waiting time : 37.50 min
+    Total waiting time   : 110 min
+    Average waiting time : 36.67 min
 
   Zone 5 (segment tree range query, O(log k)):
     Waiting patients     : 0
@@ -195,11 +245,12 @@ STEP 7: Zone statistics with segment tree range queries
     Average waiting time : n/a (no waiting patients)
 
   Zones 1 to 5 (segment tree range query, O(log k)):
-    Waiting patients     : 7
-    Total capacity       : 12
-    Available capacity   : 5
-    Total waiting time   : 330 min
-    Average waiting time : 47.14 min
+    Waiting patients     : 5
+    Total capacity       : 11
+    Available capacity   : 6
+    Total waiting time   : 250 min
+    Average waiting time : 50.00 min
+    Most crowded zone    : zone 2 (3 waiting / 2 capacity, load +1)
   [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
 
 =============== DEMONSTRATION COMPLETE ===============
