@@ -1,34 +1,16 @@
 #pragma once
 
-// SegmentTree.h
-// Segment tree over the department zones. Each leaf stores one zone's statistics;
-// each internal node stores the combined statistics of all zones in its range.
-//
-// Internal indexing:
-//   - zones are 0-based inside the tree (zone 1 in the UI is index 0)
-//   - node 1 is the root and covers [0, zoneCount - 1]
-//   - node v has children 2v (left half) and 2v + 1 (right half)
-
 #include <vector>
 
-// Aggregate statistics for one zone or a range of zones.
 struct ZoneStats {
-    int patientCount = 0;      // number of waiting patients
-    int totalWaitingTime = 0;  // sum of their waiting minutes
-    int totalCapacity = 0;     // number of treatment spaces
+    int patientCount = 0;
+    int totalWaitingTime = 0;
+    int totalCapacity = 0;
 
-    // Most crowded single zone in the range. "Load" = waiting patients - capacity
-    // (positive = over capacity, negative = spare spaces). The tree fills these in
-    // at the leaves; callers only need to set the three fields above.
-    int busiestZone = -1;      // 0-based zone index, -1 for an empty range
-    int busiestLoad = 0;       // load of that zone
+    int busiestZone = -1;
+    int busiestLoad = 0;
 };
 
-// Combines the results of two disjoint ranges (left range comes before right range).
-//   - count, waiting time, capacity: SUM of the two sides
-//   - busiest zone: MAX of the two sides (ties go to the left = lower zone number)
-// Both sum and max are associative, which is all a segment tree needs.
-// ZoneStats{} (zeros, busiestZone = -1) is the identity for an empty range.
 inline ZoneStats combineStats(const ZoneStats& left, const ZoneStats& right) {
     ZoneStats result;
     result.patientCount = left.patientCount + right.patientCount;
@@ -43,7 +25,6 @@ inline ZoneStats combineStats(const ZoneStats& left, const ZoneStats& right) {
     return result;
 }
 
-// A leaf describes exactly one zone, so that zone is its own "busiest zone".
 inline ZoneStats makeLeaf(const ZoneStats& values, int zoneIndex) {
     ZoneStats leaf = values;
     leaf.busiestZone = zoneIndex;
@@ -54,9 +35,8 @@ inline ZoneStats makeLeaf(const ZoneStats& values, int zoneIndex) {
 class SegmentTree {
 public:
     explicit SegmentTree(int numberOfZones)
-        : zoneCount(numberOfZones), tree(4 * numberOfZones) {}  // 4k nodes is always enough
+        : zoneCount(numberOfZones), tree(4 * numberOfZones) {}
 
-    // Builds the tree from one ZoneStats per zone. O(k).
     bool build(const std::vector<ZoneStats>& zoneValues) {
         if (static_cast<int>(zoneValues.size()) != zoneCount || zoneCount == 0) {
             return false;
@@ -65,7 +45,6 @@ public:
         return true;
     }
 
-    // Point update: replaces one zone's statistics (0-based index). O(log k).
     bool update(int zoneIndex, const ZoneStats& newValues) {
         if (zoneIndex < 0 || zoneIndex >= zoneCount) {
             return false;
@@ -74,8 +53,6 @@ public:
         return true;
     }
 
-    // Range query over zones [left, right] (0-based, inclusive). O(log k).
-    // An invalid range returns empty statistics.
     ZoneStats query(int left, int right) const {
         if (left < 0 || right >= zoneCount || left > right) {
             return ZoneStats{};
@@ -83,7 +60,6 @@ public:
         return queryNode(1, 0, zoneCount - 1, left, right);
     }
 
-    // Statistics of a single zone (0-based). O(log k).
     ZoneStats getZone(int zoneIndex) const {
         return query(zoneIndex, zoneIndex);
     }
@@ -96,10 +72,9 @@ private:
     int zoneCount;
     std::vector<ZoneStats> tree;
 
-    // Node `node` covers zones [start, end].
     void buildNode(int node, int start, int end, const std::vector<ZoneStats>& zoneValues) {
         if (start == end) {
-            tree[node] = makeLeaf(zoneValues[start], start);  // leaf = one zone
+            tree[node] = makeLeaf(zoneValues[start], start);
             return;
         }
         int mid = (start + end) / 2;
@@ -108,8 +83,6 @@ private:
         tree[node] = combineStats(tree[2 * node], tree[2 * node + 1]);
     }
 
-    // Walks one root-to-leaf path (height O(log k)), replaces the leaf, then
-    // recombines each node on the way back up. No other node is touched.
     void updateNode(int node, int start, int end, int zoneIndex, const ZoneStats& newValues) {
         if (start == end) {
             tree[node] = makeLeaf(newValues, start);
@@ -124,11 +97,6 @@ private:
         tree[node] = combineStats(tree[2 * node], tree[2 * node + 1]);
     }
 
-    // Three cases:
-    //   no overlap      -> contributes nothing (identity)
-    //   full overlap    -> use this node's stored total without going deeper
-    //   partial overlap -> ask both children and combine
-    // At most about 4 nodes are visited per level, so the cost is O(log k).
     ZoneStats queryNode(int node, int start, int end, int left, int right) const {
         if (right < start || end < left) {
             return ZoneStats{};

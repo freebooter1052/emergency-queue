@@ -1,16 +1,3 @@
-// main.cpp
-// Emergency Department Dynamic Patient Triage Engine - DSA demonstrator.
-// Educational simulation only: all patients are fictional and the priority
-// formula is a teaching example, not a validated medical triage formula.
-//
-// Data structures:
-//   IndexedMinHeap - the waiting queue (authoritative list of waiting patients)
-//   SegmentTree    - per-zone statistics, kept in sync with the heap
-//
-// Build:  g++ -std=c++17 -Wall -Wextra -O2 -o triage_demo main.cpp
-// Run:    ./triage_demo            (interactive menu)
-//         ./triage_demo --demo     (predefined demonstration)
-
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
@@ -24,21 +11,12 @@
 #include "Patient.h"
 #include "SegmentTree.h"
 
-// Fictional treatment capacity of zones 1..5.
 const int ZONE_CAPACITY[NUM_ZONES] = {2, 2, 3, 2, 2};
 
-// Default test data file loaded from menu option 1.
 const char* const TEST_DATA_FILE = "test_patients.txt";
 
-// Upper limit for one "advance time" step, to keep the numbers sensible.
 const int MAX_MINUTES_PER_STEP = 1440;
 
-// ============================================================================
-// Simulation state
-// ============================================================================
-
-// The heap is the authoritative record of who is still waiting.
-// The segment tree must always describe exactly the patients in the heap.
 struct TriageSimulation {
     IndexedMinHeap waitingQueue;
     SegmentTree zoneTree;
@@ -53,13 +31,10 @@ struct TriageSimulation {
     }
 };
 
-// Zones are 1-based in the user interface and 0-based inside the segment tree.
 int toTreeIndex(int zone) {
     return zone - 1;
 }
 
-// Changes one zone's patient count and waiting-time sum.
-// One point query + one point update on the segment tree: O(log k).
 void adjustZone(TriageSimulation& sim, int zone, int patientChange, int waitingTimeChange) {
     ZoneStats stats = sim.zoneTree.getZone(toTreeIndex(zone));
     stats.patientCount += patientChange;
@@ -67,7 +42,6 @@ void adjustZone(TriageSimulation& sim, int zone, int patientChange, int waitingT
     sim.zoneTree.update(toTreeIndex(zone), stats);
 }
 
-// 1-based position of a patient in attend order. Display helper only, O(n log n).
 int queuePosition(const TriageSimulation& sim, int patientId) {
     std::vector<Patient> ordered = sim.waitingQueue.getAllPatientsSorted();
     for (size_t i = 0; i < ordered.size(); ++i) {
@@ -78,17 +52,10 @@ int queuePosition(const TriageSimulation& sim, int patientId) {
     return -1;
 }
 
-// Short note showing how much work the last heap operation did, compared with
-// the height of the tree. A single sift never needs more swaps than the height,
-// and the height is floor(log2 n): this is the O(log n) bound made visible.
 std::string heapWorkNote(const TriageSimulation& sim) {
     return "[heap: " + std::to_string(sim.waitingQueue.lastOperationSwaps()) +
            " swap(s), tree height " + std::to_string(sim.waitingQueue.height()) + "]";
 }
-
-// ============================================================================
-// Display helpers
-// ============================================================================
 
 void printPatientRow(int position, const Patient& p) {
     std::cout << "  " << std::right << std::setw(3) << position << " | "
@@ -101,7 +68,6 @@ void printPatientRow(int position, const Patient& p) {
               << std::setw(14) << p.priorityScore << "\n";
 }
 
-// Option 5: sorted copy of the heap. O(n log n); the heap itself is not changed.
 void printQueue(const TriageSimulation& sim) {
     std::vector<Patient> ordered = sim.waitingQueue.getAllPatientsSorted();
     std::cout << "  Waiting queue in attend order (sorted copy of the heap, O(n log n)):\n";
@@ -116,8 +82,6 @@ void printQueue(const TriageSimulation& sim) {
     }
 }
 
-// Option 9: the internal heap array drawn level by level, plus the ID -> index map.
-// Level L holds array indices 2^L - 1 .. 2^(L+1) - 2, so the tree can be traced by hand.
 void printHeapTree(const TriageSimulation& sim) {
     std::vector<Patient> raw = sim.waitingQueue.getAllPatients();
     int count = static_cast<int>(raw.size());
@@ -152,7 +116,6 @@ void printHeapTree(const TriageSimulation& sim) {
     std::cout << "\n";
 }
 
-// Option 6: answered entirely by the segment tree, without scanning patients.
 void printZoneRange(const TriageSimulation& sim, int fromZone, int toZone) {
     ZoneStats stats = sim.zoneTree.query(toTreeIndex(fromZone), toTreeIndex(toZone));
 
@@ -179,7 +142,7 @@ void printZoneRange(const TriageSimulation& sim, int fromZone, int toZone) {
                   << averageWait << " min\n";
         std::cout.unsetf(std::ios::floatfield);
     }
-    if (fromZone != toZone && stats.busiestZone != -1) {  // non-additive merge (max)
+    if (fromZone != toZone && stats.busiestZone != -1) {
         ZoneStats busiest = sim.zoneTree.getZone(stats.busiestZone);
         std::cout << "    Most crowded zone    : zone " << stats.busiestZone + 1 << " ("
                   << busiest.patientCount << " waiting / " << busiest.totalCapacity
@@ -188,9 +151,6 @@ void printZoneRange(const TriageSimulation& sim, int fromZone, int toZone) {
     }
 }
 
-// Verification only (never used to answer queries): recompute every zone's totals
-// by scanning the waiting patients and compare them with the segment tree.
-// Also checks the heap property and the ID -> index map. O(n + k log k).
 void printConsistencyCheck(const TriageSimulation& sim) {
     bool heapOk = sim.waitingQueue.isValid();
 
@@ -212,11 +172,6 @@ void printConsistencyCheck(const TriageSimulation& sim) {
               << " | zone statistics match waiting queue: " << (zonesOk ? "OK" : "FAILED") << "\n";
 }
 
-// ============================================================================
-// Core operations (shared by the menu and the predefined demonstration)
-// ============================================================================
-
-// Option 1: heap insert O(log n) + zone point update O(log k).
 bool admitPatient(TriageSimulation& sim, int id, const std::string& name, int esi,
                   int deteriorationLevel, int zone) {
     if (id <= 0) {
@@ -259,7 +214,7 @@ bool admitPatient(TriageSimulation& sim, int id, const std::string& name, int es
         return false;
     }
     sim.nextArrivalOrder++;
-    adjustZone(sim, zone, +1, 0);  // a new arrival has waited 0 minutes so far
+    adjustZone(sim, zone, +1, 0);
 
     Patient stored;
     sim.waitingQueue.getPatient(id, stored);
@@ -269,8 +224,6 @@ bool admitPatient(TriageSimulation& sim, int id, const std::string& name, int es
     return true;
 }
 
-// Option 2: one heap update, O(log n). Waiting time and zone statistics do not change.
-// (The position lookups before/after are for display only and cost O(n log n).)
 bool updateConditionAndReport(TriageSimulation& sim, int id, int newESI, int newDeteriorationLevel) {
     Patient before;
     if (!sim.waitingQueue.getPatient(id, before)) {
@@ -318,16 +271,12 @@ bool updateConditionAndReport(TriageSimulation& sim, int id, int newESI, int new
     return true;
 }
 
-// Option 3: every waiting patient changes, so this is NOT an O(log n) operation.
-//   heap: n score updates + bottom-up rebuild = O(n)
-//   zone tree: one point update per zone      = O(k log k)
 bool advanceTimeAndReport(TriageSimulation& sim, int minutes) {
     if (minutes < 1 || minutes > MAX_MINUTES_PER_STEP) {
         std::cout << "  Error: minutes must be between 1 and " << MAX_MINUTES_PER_STEP << ".\n";
         return false;
     }
 
-    // Remember old scores only so the change can be printed.
     std::map<int, int> oldScore;
     for (const Patient& p : sim.waitingQueue.getAllPatients()) {
         oldScore[p.id] = p.priorityScore;
@@ -335,8 +284,6 @@ bool advanceTimeAndReport(TriageSimulation& sim, int minutes) {
 
     sim.waitingQueue.advanceWaitingTime(minutes);
 
-    // Each patient in a zone waited `minutes` longer, so the zone's waiting-time
-    // sum grows by minutes * patientCount. No patient scan is needed.
     for (int zone = 1; zone <= NUM_ZONES; ++zone) {
         int patientsInZone = sim.zoneTree.getZone(toTreeIndex(zone)).patientCount;
         adjustZone(sim, zone, 0, minutes * patientsInZone);
@@ -355,14 +302,13 @@ bool advanceTimeAndReport(TriageSimulation& sim, int minutes) {
     return true;
 }
 
-// Option 4: heap extractMin O(log n) + zone point update O(log k).
 bool attendNextAndReport(TriageSimulation& sim) {
     Patient next;
     if (!sim.waitingQueue.extractMin(next)) {
         std::cout << "  The waiting queue is empty. There is no patient to attend.\n";
         return false;
     }
-    // The patient has left the queue, so remove them from their zone's totals.
+
     adjustZone(sim, next.zone, -1, -next.waitingMinutes);
 
     std::cout << "  Attending patient " << next.id << " (" << next.name << ")\n";
@@ -374,14 +320,12 @@ bool attendNextAndReport(TriageSimulation& sim) {
     return true;
 }
 
-// Option 8: delete any waiting patient (left without being seen).
-// Heap removePatient O(log n) + zone point update O(log k).
 bool removePatientAndReport(TriageSimulation& sim, int id) {
     if (!sim.waitingQueue.contains(id)) {
         std::cout << "  Error: no waiting patient has ID " << id << ".\n";
         return false;
     }
-    // Remember the hole position and the last leaf, only to explain the repair afterwards.
+
     int holeIndex = sim.waitingQueue.indexOfPatient(id);
     int lastLeafId = sim.waitingQueue.getAllPatients().back().id;
 
@@ -408,12 +352,6 @@ bool removePatientAndReport(TriageSimulation& sim, int id) {
     return true;
 }
 
-// ============================================================================
-// Input helpers
-// ============================================================================
-
-// Reads one whole-number line. Re-asks on non-numeric input.
-// Returns false only at end of input.
 bool readInt(const std::string& prompt, int& value) {
     while (true) {
         std::cout << prompt;
@@ -432,7 +370,6 @@ bool readInt(const std::string& prompt, int& value) {
     }
 }
 
-// Reads one line of text with surrounding spaces removed. Returns false at end of input.
 bool readLine(const std::string& prompt, std::string& text) {
     std::cout << prompt;
     if (!std::getline(std::cin, text)) {
@@ -444,11 +381,6 @@ bool readLine(const std::string& prompt, std::string& text) {
     return true;
 }
 
-// ============================================================================
-// Menu handlers
-// ============================================================================
-
-// Splits "a, b, c" into trimmed fields.
 std::vector<std::string> splitCsvLine(const std::string& line) {
     std::vector<std::string> fields;
     std::stringstream stream(line);
@@ -461,16 +393,12 @@ std::vector<std::string> splitCsvLine(const std::string& line) {
     return fields;
 }
 
-// Converts text to a whole number; false if it is not purely a number.
 bool parseWholeNumber(const std::string& text, int& value) {
     std::stringstream parser(text);
     char extra;
     return (parser >> value) && !(parser >> extra);
 }
 
-// Adds every patient listed in a test data file through the normal admitPatient()
-// path, so all validation and heap/segment-tree updates are identical to manual entry.
-// Line format: id, name, esi, deterioration, zone   ('#' lines and blank lines are skipped)
 void loadPatientsFromFile(TriageSimulation& sim, const std::string& path) {
     std::ifstream file(path);
     if (!file) {
@@ -531,7 +459,7 @@ void handleAddPatient(TriageSimulation& sim) {
     int id, esi, deterioration, zone;
     std::string name;
     if (!readInt("Patient ID: ", id)) return;
-    if (sim.waitingQueue.contains(id)) {  // reject straight away, before asking for the rest
+    if (sim.waitingQueue.contains(id)) {
         std::cout << "  Error: patient ID " << id << " is already waiting. Duplicate rejected.\n";
         return;
     }
@@ -574,10 +502,6 @@ void handleZoneQuery(TriageSimulation& sim) {
     printZoneRange(sim, fromZone, toZone);
 }
 
-// ============================================================================
-// Option 7: predefined demonstration (fixed data, same output every run)
-// ============================================================================
-
 void printStepHeading(const std::string& title) {
     std::cout << "\n------------------------------------------------------------------\n"
               << title
@@ -585,7 +509,7 @@ void printStepHeading(const std::string& title) {
 }
 
 void runDemonstration() {
-    TriageSimulation sim;  // fresh state, independent of the interactive session
+    TriageSimulation sim;
 
     std::cout << "\n=============== PREDEFINED TRIAGE DEMONSTRATION ===============\n";
     std::cout << "All patients are fictional. The priority formula is a teaching example,\n"
@@ -697,12 +621,8 @@ void runDemonstration() {
     std::cout << "\n=============== DEMONSTRATION COMPLETE ===============\n";
 }
 
-// ============================================================================
-// Main menu
-// ============================================================================
-
 void printMenu() {
-    std::cout << "\n========== EMERGENCY TRIAGE DSA DEMO ==========\n\n"
+    std::cout << "\n========== EMERGENCY TRIAGE DSA ==========\n\n"
               << "1. Add a patient (manually or load test data file)\n"
               << "2. Update patient condition\n"
               << "3. Advance simulated time\n"

@@ -43,7 +43,7 @@ simple_triage_dsa/
 `tests.cpp` was added beyond the required file list so the checks can be rerun. It is
 not needed to build or run the demo.
 
----
+--- 
 
 ## 3. Build and run on Windows
 
