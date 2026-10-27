@@ -159,6 +159,39 @@ void testHeapRemove() {
     check(heap.size() == 3, "failed remove changed nothing");
 }
 
+void testHeapTransferAndRank() {
+    std::cout << "Heap transferZone and rankOf\n";
+    IndexedMinHeap heap;
+    heap.insert(makePatient(1, 2, 0, 1, 1));
+    heap.insert(makePatient(2, 3, 0, 2, 2));
+    heap.insert(makePatient(3, 3, 0, 2, 3));
+    heap.insert(makePatient(4, 5, 0, 4, 4));
+
+    std::vector<Patient> before = heap.getAllPatients();
+    check(heap.transferZone(3, 5), "transfer patient 3 to zone 5");
+    Patient p;
+    heap.getPatient(3, p);
+    check(p.zone == 5, "patient 3 now in zone 5");
+    std::vector<Patient> after = heap.getAllPatients();
+    bool sameLayout = before.size() == after.size();
+    for (size_t i = 0; sameLayout && i < before.size(); ++i) sameLayout = before[i].id == after[i].id;
+    check(sameLayout && heap.lastOperationSwaps() == 0, "transfer did not move anyone in the heap");
+    check(heap.isValid(), "heap valid after transfer");
+
+    check(!heap.transferZone(99, 2), "transfer of unknown ID rejected");
+    check(!heap.transferZone(2, 0) && !heap.transferZone(2, 6), "transfer to invalid zone rejected");
+    heap.getPatient(2, p);
+    check(p.zone == 2, "rejected transfer changed nothing");
+
+    std::vector<Patient> sorted = heap.getAllPatientsSorted();
+    bool ranksMatch = true;
+    for (size_t i = 0; i < sorted.size(); ++i) {
+        if (heap.rankOf(sorted[i].id) != static_cast<int>(i) + 1) ranksMatch = false;
+    }
+    check(ranksMatch, "rankOf matches position in heap-sort order (including the tie 2 vs 3)");
+    check(heap.rankOf(99) == -1, "rankOf unknown ID is -1");
+}
+
 void testHeapRandomised() {
     std::cout << "Heap randomised comparison with brute force (2000 operations)\n";
     bool allSwapsWithinHeight = true;
@@ -321,6 +354,7 @@ int main() {
     testHeapBasics();
     testHeapUpdates();
     testHeapRemove();
+    testHeapTransferAndRank();
     testHeapRandomised();
     testSegmentTree();
     std::cout << "\nPassed: " << passed << "   Failed: " << failed << "\n";

@@ -253,4 +253,30 @@ STEP 8: Zone statistics with segment tree range queries
     Most crowded zone    : zone 2 (3 waiting / 2 capacity, load +1)
   [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
 
+------------------------------------------------------------------
+STEP 9: Relieve the crowded zone (zone transfer, O(log k) tree work)
+------------------------------------------------------------------
+Zone 2 is over capacity and zone 5 is empty, so Hana Sato is moved.
+The heap does not reorder: only her zone field changes (O(1) via the map).
+
+  Patient 108 (Hana Sato) moved from zone 2 to zone 5, keeping 0 min of waiting time.
+  Priority score 200 and queue position are unchanged (zone is not part of the formula).  [heap: 0 swap(s), tree height 2]
+  Segment tree: 2 point updates (zone 2 -1, zone 5 +1), O(log k) each.
+
+  Zone 2 (segment tree range query, O(log k)):
+    Waiting patients     : 2
+    Total capacity       : 2
+    Available capacity   : 0
+    Total waiting time   : 110 min
+    Average waiting time : 55.00 min
+
+  Zones 1 to 5 (segment tree range query, O(log k)):
+    Waiting patients     : 5
+    Total capacity       : 11
+    Available capacity   : 6
+    Total waiting time   : 250 min
+    Average waiting time : 50.00 min
+    Most crowded zone    : zone 2 (2 waiting / 2 capacity, load 0)
+  [check] heap property + ID->index map: OK | zone statistics match waiting queue: OK
+
 =============== DEMONSTRATION COMPLETE ===============

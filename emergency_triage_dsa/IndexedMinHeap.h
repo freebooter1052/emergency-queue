@@ -75,6 +75,16 @@ public:
         return true;
     }
 
+    bool transferZone(int patientId, int newZone) {
+        auto found = indexOf.find(patientId);
+        if (found == indexOf.end() || !isValidZone(newZone)) {
+            return false;
+        }
+        swapsInLastOperation = 0;
+        heap[found->second].zone = newZone;
+        return true;
+    }
+
     bool advanceWaitingTime(int minutes) {
         if (minutes < 0) {
             return false;
@@ -115,6 +125,21 @@ public:
             ordered.push_back(next);
         }
         return ordered;
+    }
+
+    int rankOf(int patientId) const {
+        auto found = indexOf.find(patientId);
+        if (found == indexOf.end()) {
+            return -1;
+        }
+        const Patient& target = heap[found->second];
+        int rank = 1;
+        for (const Patient& other : heap) {
+            if (isHigherPriority(other, target)) {
+                ++rank;
+            }
+        }
+        return rank;
     }
 
     int indexOfPatient(int patientId) const {
