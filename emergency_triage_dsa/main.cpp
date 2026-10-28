@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "BedMatching.h"
 #include "IndexedMinHeap.h"
 #include "Patient.h"
 #include "SegmentTree.h"
@@ -82,6 +83,38 @@ void printQueue(const TriageSimulation& sim) {
     for (size_t i = 0; i < ordered.size(); ++i) {
         printPatientRow(static_cast<int>(i) + 1, ordered[i], nameWidth);
     }
+}
+
+void printBedAssignments(const TriageSimulation& sim) {
+    std::vector<Patient> patients = sim.waitingQueue.getAllPatientsSorted();
+    const std::vector<int> bedZones = {1, 2, 3, 4, 5};
+    HopcroftKarp matching(static_cast<int>(patients.size()), static_cast<int>(bedZones.size()));
+
+    for (int patientIndex = 0; patientIndex < static_cast<int>(patients.size()); ++patientIndex) {
+        for (int bedIndex = 0; bedIndex < static_cast<int>(bedZones.size()); ++bedIndex) {
+            if (patients[patientIndex].zone == bedZones[bedIndex]) {
+                matching.addEdge(patientIndex, bedIndex);
+            }
+        }
+    }
+
+    int matched = matching.run(true);
+    std::cout << "  Available beds are zone-compatible: " << bedZones.size()
+              << " bed(s), one in each zone. Hopcroft-Karp matching: " << matched
+              << "/" << patients.size() << " patient(s) assigned, "
+              << matching.phases() << " augmenting phase(s).\n";
+    std::cout << "  Patient-to-bed assignments (patients are considered in priority order):\n";
+    for (int patientIndex = 0; patientIndex < static_cast<int>(patients.size()); ++patientIndex) {
+        int bedIndex = matching.bedOfPatient(patientIndex);
+        std::cout << "    Patient " << patients[patientIndex].id << " (" << patients[patientIndex].name
+                  << ", zone " << patients[patientIndex].zone << "): ";
+        if (bedIndex == -1) {
+            std::cout << "WAITING - no compatible bed available\n";
+        } else {
+            std::cout << "Bed B" << bedIndex + 1 << " (zone " << bedZones[bedIndex] << ")\n";
+        }
+    }
+    std::cout << "  Matching validity: " << (matching.isValidMatching() ? "OK" : "FAILED") << "\n";
 }
 
 void printHeapTree(const TriageSimulation& sim) {
@@ -665,6 +698,9 @@ void runDemonstration() {
     std::cout << "\n";
     printZoneRange(sim, 1, 5);
     printConsistencyCheck(sim);
+
+    printStepHeading("STEP 10: Assign available beds (Hopcroft-Karp maximum matching)");
+    printBedAssignments(sim);
 
     std::cout << "\n=============== DEMONSTRATION COMPLETE ===============\n";
 }

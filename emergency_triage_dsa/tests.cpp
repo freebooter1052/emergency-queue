@@ -357,8 +357,6 @@ void testSegmentTree() {
     check(allMatch, "every range query matched brute-force sums and busiest zone (sizes 1-9)");
 }
 
-// Drives any (id, key) heap with random insert / decrease-key / extract-min and compares
-// every answer with a std::set reference.
 template <class Heap>
 bool randomisedHeapRun(Heap& heap, unsigned seed, int steps, int idSpace) {
     std::mt19937 rng(seed);
@@ -448,7 +446,6 @@ void testFibonacciHeap() {
     check(heap.extractMin(id, key) && id == 0, "first extract returns the smallest key");
     check(heap.rootCount() < 64 && heap.isValid(), "extract consolidated the root list");
 
-    // Build deep trees, then decrease the keys of several descendants to force cascading cuts.
     for (int i = 0; i < 20; ++i) {
         heap.extractMin(id, key);
     }
@@ -519,7 +516,6 @@ void testHeapsAgreeOnWorkloads() {
 void testBucketSegmentTree() {
     std::cout << "Zone x ESI segment tree with lazy waiting time\n";
     BucketSegmentTree tree(5, 5);
-    // 4 ESI-2 patients in zone 1..2 who arrived at minutes 0, 10, 20, 40.
     tree.addPatient(1, 2, 0);
     tree.addPatient(1, 2, 10);
     tree.addPatient(2, 2, 20);
@@ -545,7 +541,6 @@ void testBucketSegmentTree() {
     check(!tree.removePatient(1, 2, 0), "removing a patient who is not there is rejected");
     check(tree.isConsistent(), "tree consistent after updates");
 
-    // Duplicate arrival times in one bucket must be counted separately.
     tree.addPatient(4, 3, 15);
     tree.addPatient(4, 3, 15);
     tree.removePatient(4, 3, 15);
@@ -620,7 +615,6 @@ void testStarvation() {
     int arrival = 2;
     int servedMinute = -1;
     for (int minute = 1; minute <= 600 && servedMinute < 0; ++minute) {
-        // A new ESI-2 patient arrives every 5 minutes and the ED attends one patient per 5 minutes.
         heap.advanceWaitingTime(1);
         if (minute % 5 == 0) {
             heap.insert(makePatient(nextId++, 2, 0, 1, arrival++));
@@ -633,7 +627,6 @@ void testStarvation() {
     check(servedMinute <= 125, "...after about (300 - 100) / 2 = 100 extra minutes of waiting, not never");
 }
 
-// Reference maximum matching (Kuhn's algorithm) for checking Hopcroft-Karp.
 bool kuhnTry(int u, const std::vector<std::vector<int>>& adj, std::vector<int>& matchRight,
              std::vector<char>& seen) {
     for (int v : adj[u]) {
@@ -659,7 +652,6 @@ int kuhnMatching(const std::vector<std::vector<int>>& adj, int rightCount) {
 
 void testHopcroftKarp() {
     std::cout << "Hopcroft-Karp bed matching\n";
-    // Greedy alone would give patient 0 bed 0 and strand patient 1; augmenting fixes it.
     HopcroftKarp small(2, 2);
     small.addEdge(0, 0);
     small.addEdge(0, 1);
@@ -706,7 +698,6 @@ void testHopcroftKarp() {
     check(initIndependent, "same size without the greedy start");
     check(valid, "every matching uses only real edges and is consistent from both sides");
 
-    // Larger graph: phases stay small (O(sqrt V)).
     int n = 2000;
     HopcroftKarp big(n, n);
     for (int u = 0; u < n; ++u) {

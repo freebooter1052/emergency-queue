@@ -5,18 +5,6 @@
 #include <set>
 #include <vector>
 
-// Segment tree over zone x ESI buckets: the "live analytics" structure from the slides.
-//
-// Leaves are laid out ESI-major, leaf = (esi - 1) * zones + (zone - 1), so "ESI 2 in zones
-// 1..4" is ONE contiguous range and costs one O(log k) range query (k = zones * ESI levels).
-// A query over several ESI levels is one range query per level, still O(E log k).
-//
-// Lazy waiting time: a bucket stores ARRIVAL times, not waiting times. A waiting time grows
-// with the clock, so a stored total would go stale every minute. Instead
-//     totalWait   = count * now - sumArrival
-//     longestWait = now - oldestArrival      (the "minimum" arrival time)
-//     shortestWait= now - newestArrival
-// are computed at query time from the clock, so advancing time touches nothing in the tree.
 
 struct BucketStats {
     int count = 0;
@@ -55,14 +43,12 @@ inline WaitSummary summarizeWaits(const BucketStats& stats, int now) {
     return summary;
 }
 
-// One waiting patient as the linear-scan baseline sees it.
 struct BucketRecord {
     int zone;
     int esi;
     int arrival;
 };
 
-// The O(n) baseline the segment tree is compared with: look at every patient.
 inline BucketStats linearScanStats(const std::vector<BucketRecord>& records, int zoneFrom,
                                    int zoneTo, int esiFrom, int esiTo) {
     BucketStats result;
@@ -113,7 +99,6 @@ public:
         return true;
     }
 
-    // Statistics for zones [zoneFrom, zoneTo] and ESI levels [esiFrom, esiTo] (1-based, inclusive).
     BucketStats query(int zoneFrom, int zoneTo, int esiFrom, int esiTo) const {
         BucketStats result;
         if (zoneFrom < 1 || zoneTo > zones || zoneFrom > zoneTo || esiFrom < 1 ||
@@ -128,13 +113,11 @@ public:
         return result;
     }
 
-    // Segment-tree nodes touched by the last query() calls (reset with resetNodeCount()).
     long long nodesVisited() const { return visited; }
     void resetNodeCount() const { visited = 0; }
 
     int getLeafCount() const { return leafCount; }
 
-    // Rebuilds every node from the buckets and compares; used by the tests.
     bool isConsistent() const {
         for (int leaf = 0; leaf < leafCount; ++leaf) {
             BucketStats expected = statsOf(buckets[leaf]);

@@ -6,17 +6,6 @@
 
 #include "HeapKey.h"
 
-// Fibonacci min-heap: a collection of heap-ordered trees whose roots sit in a circular
-// doubly linked list.
-//
-//   insert        O(1)          add a one-node tree to the root list
-//   decreaseKey   O(1) amortized cut the node out and move it to the root list; cascading
-//                               cuts keep every tree "Fibonacci-shaped"
-//   extractMin    O(log n) amortized  promote the children, then consolidate roots of
-//                               equal degree until all root degrees are different
-//
-// The ID -> node handle table (a vector) plays the same role as the position map of the
-// array heaps, so decrease-key does not search.
 class FibonacciHeap {
 public:
     explicit FibonacciHeap(int maxId) : handle(maxId, nullptr) {}
@@ -120,19 +109,14 @@ public:
     int size() const { return count; }
     bool isEmpty() const { return count == 0; }
 
-    // Proxy for memory traffic: nodes read or written (see DaryHeap::touches).
     std::uint64_t touches() const { return touched; }
 
-    // Estimated bytes: every node is its own allocation, assumed to carry 8 bytes of
-    // allocator bookkeeping and to be rounded up to a multiple of 16, plus the handle
-    // table and the consolidation table.
     std::size_t memoryBytes() const {
         constexpr std::size_t nodeBytes = ((sizeof(Node) + 8 + 15) / 16) * 16;
         return static_cast<std::size_t>(count) * nodeBytes +
                handle.capacity() * sizeof(Node*) + degreeTable.capacity() * sizeof(Node*);
     }
 
-    // Heap order, parent links, stored degrees, circular lists, node count, handle table.
     bool isValid() const {
         if (minNode == nullptr) return count == 0;
         int seen = 0;
@@ -169,7 +153,6 @@ public:
         return minOk && seen == count;
     }
 
-    // Root count and the largest degree, to show how lazy the structure currently is.
     int rootCount() const {
         if (minNode == nullptr) return 0;
         int roots = 0;
@@ -203,7 +186,6 @@ private:
         return (id >= 0 && id < static_cast<int>(handle.size())) ? handle[id] : nullptr;
     }
 
-    // Splices `node` (a single-node list or a node already detached) next to minNode.
     void addToRootList(Node* node) {
         node->parent = nullptr;
         if (minNode == nullptr) {
@@ -226,7 +208,6 @@ private:
         node->left = node->right = node;
     }
 
-    // Makes `child` a child of `parent`. Both are roots of equal degree.
     void link(Node* child, Node* parent) {
         unlink(child);
         child->parent = parent;
@@ -250,7 +231,6 @@ private:
         unlink(node);
         --parent->degree;
         node->mark = false;
-        // minNode is still the current minimum, so addToRootList cannot lose it.
         addToRootList(node);
         touched += 2;
     }
@@ -269,7 +249,6 @@ private:
     }
 
     void consolidate() {
-        // Maximum possible degree is about 1.44 * log2(n); 2 * (bit length) is a safe bound.
         int bound = 2;
         for (long long n = count; n > 0; n >>= 1) bound += 2;
         degreeTable.assign(bound, nullptr);

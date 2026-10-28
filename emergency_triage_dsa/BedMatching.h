@@ -5,15 +5,6 @@
 #include <queue>
 #include <vector>
 
-// Hopcroft-Karp maximum bipartite matching: patients (left) to beds (right).
-// O(E * sqrt(V)): each phase is one BFS that layers the graph by shortest augmenting
-// path length, then DFS finds a maximal set of vertex-disjoint shortest augmenting paths.
-// There are O(sqrt(V)) phases.
-//
-// Priority: a maximum matching only maximises HOW MANY patients get a bed. To favour urgent
-// patients, add the left vertices in priority order and keep greedyInit = true: patients
-// matched by the greedy pass stay matched forever (an augmenting path never unmatches a
-// left vertex), so the most urgent patients keep a bed while later phases only add more.
 class HopcroftKarp {
 public:
     HopcroftKarp(int leftCount, int rightCount)
@@ -30,7 +21,6 @@ public:
         }
     }
 
-    // Returns the size of a maximum matching.
     int run(bool greedyInit = true) {
         std::fill(matchOfLeft.begin(), matchOfLeft.end(), NONE);
         std::fill(matchOfRight.begin(), matchOfRight.end(), NONE);
@@ -65,7 +55,6 @@ public:
     int patientOfBed(int v) const { return matchOfRight[v]; }
     int phases() const { return phaseCount; }
 
-    // Matching must use only real edges and be consistent from both sides.
     bool isValidMatching() const {
         for (int u = 0; u < left; ++u) {
             int v = matchOfLeft[u];
@@ -94,8 +83,6 @@ private:
     int phaseCount = 0;
     int shortestPath = INT_MAX;
 
-    // BFS from every free patient, stopping after the layer where the first free bed shows up.
-    // Returns true when an augmenting path exists.
     bool buildLayers() {
         std::queue<int> frontier;
         for (int u = 0; u < left; ++u) {
@@ -126,13 +113,10 @@ private:
         return shortestPath != INT_MAX;
     }
 
-    // DFS along layer u -> u+1 only, so it follows shortest augmenting paths.
-    // nextEdge[u] remembers how far u's edge list was explored (each edge once per phase).
     bool augment(int u) {
         for (int& i = nextEdge[u]; i < static_cast<int>(adjacency[u].size()); ++i) {
             int v = adjacency[u][i];
             int next = matchOfRight[v];
-            // A free bed only ends the path at the shortest length found by the BFS.
             bool endsHere = next == NONE && layer[u] == shortestPath;
             if (endsHere || (next != NONE && layer[next] == layer[u] + 1 && augment(next))) {
                 matchOfLeft[u] = v;

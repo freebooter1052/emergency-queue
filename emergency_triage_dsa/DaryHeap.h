@@ -6,13 +6,6 @@
 
 #include "HeapKey.h"
 
-// Array-based d-ary min-heap with an ID -> index position map.
-// D = 2 is the binary-heap baseline from the evaluation plan.
-//
-//   parent(i) = (i - 1) / D       first child(i) = D * i + 1
-//
-// Bigger D means a shallower tree (decrease-key / insert walk log_D n levels) but
-// extract-min must scan D children per level, so it costs O(D log_D n).
 template <int D>
 class DaryHeap {
     static_assert(D >= 2, "a d-ary heap needs at least 2 children per node");
@@ -30,7 +23,6 @@ public:
         return true;
     }
 
-    // Only a strictly smaller key is accepted (a deterioration moves a patient toward the front).
     bool decreaseKey(int id, HeapKey newKey) {
         if (!contains(id) || newKey >= heap[position[id]].key) {
             return false;
@@ -73,11 +65,8 @@ public:
     int size() const { return static_cast<int>(heap.size()); }
     bool isEmpty() const { return heap.empty(); }
 
-    // Proxy for memory traffic: heap entries read or written. Hardware cache misses
-    // need an external profiler; see README section 12.
     std::uint64_t touches() const { return touched; }
 
-    // Bytes currently reserved: entry array capacity plus the ID -> index map.
     std::size_t memoryBytes() const {
         return heap.capacity() * sizeof(Entry) + position.capacity() * sizeof(int);
     }
@@ -110,7 +99,6 @@ private:
         ++touched;
     }
 
-    // Moves a "hole" upward instead of swapping, so each level costs one write.
     void siftUp(int index) {
         Entry moving = heap[index];
         ++touched;

@@ -30,13 +30,6 @@ inline int calculatePriorityScore(const Patient& patient) {
          - (patient.waitingMinutes / WAIT_BLOCK_MINUTES) * WAIT_BLOCK_WEIGHT;
 }
 
-// Lazy aging. With continuous aging, a patient's score at clock time `now` is
-//     base - (WAIT_BLOCK_WEIGHT / WAIT_BLOCK_MINUTES) * (now - arrivalTime)
-// = (base + 2 * arrivalTime) - 2 * now. The bracket never changes after arrival and
-// the "- 2 * now" part is the same for everybody, so ordering patients by this fixed key
-// orders them correctly at every clock time and advancing time costs O(1), not O(n).
-// (calculatePriorityScore() above rounds waiting time down to 5-minute blocks, so its
-// scores can differ from the continuous ones by less than WAIT_BLOCK_WEIGHT points.)
 inline int lazyAgingKey(int esi, int deteriorationLevel, int arrivalTime) {
     return (esi - 1) * ESI_WEIGHT - deteriorationLevel * DETERIORATION_WEIGHT +
            (WAIT_BLOCK_WEIGHT / WAIT_BLOCK_MINUTES) * arrivalTime;

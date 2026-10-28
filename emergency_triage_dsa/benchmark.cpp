@@ -1,6 +1,3 @@
-// Benchmark for the evaluation plan: binary vs d-ary vs Fibonacci heaps under steady and
-// burst triage workloads with a varying decrease-key ratio, plus the segment tree against
-// a linear scan. Build: g++ -std=c++17 -O2 -static -o triage_bench.exe benchmark.cpp
 
 #include <algorithm>
 #include <chrono>
@@ -27,10 +24,7 @@
 
 using Clock = std::chrono::steady_clock;
 
-// ---------------------------------------------------------------- timing helpers
 
-// Per-operation timing uses the CPU cycle counter when available (a steady_clock call is
-// too coarse for a ~50 ns operation), converted to nanoseconds by calibration.
 inline std::uint64_t readTicks() {
 #ifdef HAVE_TSC
     return __rdtsc();
@@ -65,7 +59,6 @@ struct TickClock {
     }
 };
 
-// ---------------------------------------------------------------- heap benchmark
 
 constexpr int OP_KINDS = 3;
 
@@ -81,7 +74,6 @@ struct RunResult {
     bool correct = true;
 };
 
-// Applies one operation. Returns false when the heap disagrees with the reference.
 template <class Heap>
 inline bool applyOp(Heap& heap, const Op& op) {
     switch (op.type) {
@@ -102,7 +94,7 @@ template <class Heap>
 RunResult runStructure(const Workload& w, const TickClock& clock) {
     RunResult result;
 
-    {   // Pass A: total time for the whole operation stream, no per-operation timers.
+    {
         Heap heap(w.maxId);
         for (const Op& op : w.preload) applyOp(heap, op);
         bool ok = true;
@@ -113,7 +105,7 @@ RunResult runStructure(const Workload& w, const TickClock& clock) {
         result.correct = ok && heap.isValid();
     }
 
-    {   // Pass B: per-operation-type cost, peak memory and memory-traffic proxy.
+    {
         Heap heap(w.maxId);
         for (const Op& op : w.preload) applyOp(heap, op);
         std::uint64_t touchBase = heap.touches();
@@ -183,8 +175,6 @@ struct WorkloadReport {
     std::vector<Summary> rows;
 };
 
-// Trial 0 is a warm-up and is discarded. Every trial uses its own seed, shared by all
-// structures, so the structures always see identical operation streams.
 WorkloadReport benchmarkWorkload(WorkloadSpec spec, int trials, const TickClock& clock) {
     const std::vector<Structure>& all = structures();
     std::vector<std::vector<RunResult>> runs(all.size());
@@ -219,7 +209,6 @@ WorkloadReport benchmarkWorkload(WorkloadSpec spec, int trials, const TickClock&
     return report;
 }
 
-// ---------------------------------------------------------------- reporting
 
 std::string fixed(double value, int digits) {
     std::ostringstream out;
@@ -325,7 +314,6 @@ void writeCsv(const std::string& path, const std::vector<Sweep>& sweeps) {
     std::cout << "\nWrote " << path << "\n";
 }
 
-// One line chart per sweep (execution time against decrease-key ratio), as a plain SVG.
 void writeSvg(const std::string& path, const std::vector<Sweep>& sweeps) {
     std::ofstream out(path);
     if (!out) {
@@ -382,7 +370,6 @@ void writeSvg(const std::string& path, const std::vector<Sweep>& sweeps) {
     std::cout << "Wrote " << path << "\n";
 }
 
-// ---------------------------------------------------------------- segment tree vs linear scan
 
 void benchmarkSegmentTree(unsigned seed) {
     std::cout << "\n=== Segment tree vs linear scan: zone x ESI range statistics ===\n"
@@ -435,7 +422,6 @@ void benchmarkSegmentTree(unsigned seed) {
         }
         double nodesPerQuery = static_cast<double>(tree.nodesVisited()) / queries.size();
 
-        // A patient leaving and another arriving: remove + add = two leaf-to-root updates.
         const int updates = 20000;
         auto u0 = Clock::now();
         for (int i = 0; i < updates; ++i) {
@@ -457,7 +443,6 @@ void benchmarkSegmentTree(unsigned seed) {
               << "  number of buckets (k = 25). A tree update also pays a multiset step inside its leaf.\n";
 }
 
-// ---------------------------------------------------------------- main
 
 int main(int argc, char* argv[]) {
     int preload = 10000, operations = 300000, trials = 5, maxDrop = 120;

@@ -110,7 +110,10 @@ values outside the supported ESI, deterioration, and zone ranges.
 
 The demo maintains the heap and zone tree together. Every mutation prints a
 small operation trace and the predefined demo emits `[check]` lines that verify
-the heap property, ID map, and zone aggregates.
+the heap property, ID map, and zone aggregates. Its final step also runs the
+Hopcroft-Karp bed matcher with one zone-compatible bed per zone and prints the
+patient-to-bed assignments, unmatched patients, matching phase count, and
+matching validity.
 
 ## Priority model
 

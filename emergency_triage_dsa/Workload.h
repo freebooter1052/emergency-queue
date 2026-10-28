@@ -10,12 +10,6 @@
 #include "HeapKey.h"
 #include "Patient.h"
 
-// Triage-style operation streams for the heap benchmark.
-//
-// One stream is generated per (workload, seed) and replayed unchanged on every heap, so
-// all structures see exactly the same inserts, deteriorations and extractions. The
-// generator keeps a reference std::set while generating, so each ExtractMin records the
-// ID that MUST come out; the benchmark checks every heap against it.
 
 enum class OpType { Insert, DecreaseKey, ExtractMin };
 
@@ -26,11 +20,6 @@ struct Op {
     int expectedId;
 };
 
-// A phase covers `fraction` of the operations. Within it:
-//   P(decrease-key) = decreaseRatio                      (same for every phase)
-//   P(insert)       = (1 - decreaseRatio) * insertShare
-//   P(extract-min)  = (1 - decreaseRatio) * (1 - insertShare)
-// `severeArrivals` skews the ESI mix toward ESI 1-2, as in a mass-casualty event.
 struct Phase {
     double fraction;
     double insertShare;
@@ -42,7 +31,7 @@ struct WorkloadSpec {
     int preload = 10000;
     int operations = 300000;
     double decreaseRatio = 0.3;
-    int maxScoreDrop = 120;   // a deterioration lowers the score by 1..maxScoreDrop points
+    int maxScoreDrop = 120;
     std::vector<Phase> phases;
     unsigned seed = 1;
 };
@@ -65,7 +54,6 @@ inline WorkloadSpec steadyWorkload(double decreaseRatio) {
     return spec;
 }
 
-// Normal flow, then a sudden arrival surge, then the department works the backlog down.
 inline WorkloadSpec burstWorkload(double decreaseRatio) {
     WorkloadSpec spec;
     spec.name = "mass-casualty burst";
@@ -91,7 +79,6 @@ inline Workload generateWorkload(const WorkloadSpec& spec) {
     int nextId = 0;
 
     auto drawEsi = [&](bool severe) {
-        // Cumulative percentages for ESI 1..5.
         static const int ordinary[5] = {3, 15, 55, 85, 100};
         static const int surge[5] = {20, 55, 80, 93, 100};
         int roll = uniform(1, 100);
