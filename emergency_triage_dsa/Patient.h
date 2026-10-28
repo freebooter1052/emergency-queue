@@ -30,6 +30,15 @@ inline int calculatePriorityScore(const Patient& patient) {
          - (patient.waitingMinutes / WAIT_BLOCK_MINUTES) * WAIT_BLOCK_WEIGHT;
 }
 
+inline int lazyAgingKey(int esi, int deteriorationLevel, int arrivalTime) {
+    return (esi - 1) * ESI_WEIGHT - deteriorationLevel * DETERIORATION_WEIGHT +
+           (WAIT_BLOCK_WEIGHT / WAIT_BLOCK_MINUTES) * arrivalTime;
+}
+
+inline int lazyEffectiveScore(int lazyKey, int now) {
+    return lazyKey - (WAIT_BLOCK_WEIGHT / WAIT_BLOCK_MINUTES) * now;
+}
+
 inline bool isHigherPriority(const Patient& a, const Patient& b) {
     if (a.priorityScore != b.priorityScore) {
         return a.priorityScore < b.priorityScore;

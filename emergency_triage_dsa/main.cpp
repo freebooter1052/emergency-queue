@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "BedMatching.h"
 #include "IndexedMinHeap.h"
 #include "Patient.h"
 #include "SegmentTree.h"
@@ -43,13 +44,7 @@ void adjustZone(TriageSimulation& sim, int zone, int patientChange, int waitingT
 }
 
 int queuePosition(const TriageSimulation& sim, int patientId) {
-    std::vector<Patient> ordered = sim.waitingQueue.getAllPatientsSorted();
-    for (size_t i = 0; i < ordered.size(); ++i) {
-        if (ordered[i].id == patientId) {
-            return static_cast<int>(i) + 1;
-        }
-    }
-    return -1;
+    return sim.waitingQueue.rankOf(patientId);
 }
 
 std::string heapWorkNote(const TriageSimulation& sim) {
@@ -57,10 +52,12 @@ std::string heapWorkNote(const TriageSimulation& sim) {
            " swap(s), tree height " + std::to_string(sim.waitingQueue.height()) + "]";
 }
 
-void printPatientRow(int position, const Patient& p) {
+const int MIN_NAME_COLUMN_WIDTH = 14;
+
+void printPatientRow(int position, const Patient& p, int nameWidth) {
     std::cout << "  " << std::right << std::setw(3) << position << " | "
               << std::setw(10) << p.id << " | "
-              << std::left << std::setw(14) << p.name << " | "
+              << std::left << std::setw(nameWidth) << p.name << " | "
               << std::right << std::setw(3) << p.esi << " | "
               << std::setw(13) << p.deteriorationLevel << " | "
               << std::setw(10) << p.waitingMinutes << " | "
@@ -75,11 +72,49 @@ void printQueue(const TriageSimulation& sim) {
         std::cout << "  (the waiting queue is empty)\n";
         return;
     }
-    std::cout << "  Pos | Patient ID | Name           | ESI | Deterioration | Wait (min) | Zone | Priority Score\n";
-    std::cout << "  ----+------------+----------------+-----+---------------+------------+------+---------------\n";
-    for (size_t i = 0; i < ordered.size(); ++i) {
-        printPatientRow(static_cast<int>(i) + 1, ordered[i]);
+    int nameWidth = MIN_NAME_COLUMN_WIDTH;
+    for (const Patient& p : ordered) {
+        nameWidth = std::max(nameWidth, static_cast<int>(p.name.size()));
     }
+    std::cout << "  Pos | Patient ID | " << std::left << std::setw(nameWidth) << "Name"
+              << " | ESI | Deterioration | Wait (min) | Zone | Priority Score\n";
+    std::cout << "  ----+------------+" << std::string(nameWidth + 2, '-')
+              << "+-----+---------------+------------+------+---------------\n";
+    for (size_t i = 0; i < ordered.size(); ++i) {
+        printPatientRow(static_cast<int>(i) + 1, ordered[i], nameWidth);
+    }
+}
+
+void printBedAssignments(const TriageSimulation& sim) {
+    std::vector<Patient> patients = sim.waitingQueue.getAllPatientsSorted();
+    const std::vector<int> bedZones = {1, 2, 3, 4, 5};
+    HopcroftKarp matching(static_cast<int>(patients.size()), static_cast<int>(bedZones.size()));
+
+    for (int patientIndex = 0; patientIndex < static_cast<int>(patients.size()); ++patientIndex) {
+        for (int bedIndex = 0; bedIndex < static_cast<int>(bedZones.size()); ++bedIndex) {
+            if (patients[patientIndex].zone == bedZones[bedIndex]) {
+                matching.addEdge(patientIndex, bedIndex);
+            }
+        }
+    }
+
+    int matched = matching.run(true);
+    std::cout << "  Available beds are zone-compatible: " << bedZones.size()
+              << " bed(s), one in each zone. Hopcroft-Karp matching: " << matched
+              << "/" << patients.size() << " patient(s) assigned, "
+              << matching.phases() << " augmenting phase(s).\n";
+    std::cout << "  Patient-to-bed assignments (patients are considered in priority order):\n";
+    for (int patientIndex = 0; patientIndex < static_cast<int>(patients.size()); ++patientIndex) {
+        int bedIndex = matching.bedOfPatient(patientIndex);
+        std::cout << "    Patient " << patients[patientIndex].id << " (" << patients[patientIndex].name
+                  << ", zone " << patients[patientIndex].zone << "): ";
+        if (bedIndex == -1) {
+            std::cout << "WAITING - no compatible bed available\n";
+        } else {
+            std::cout << "Bed B" << bedIndex + 1 << " (zone " << bedZones[bedIndex] << ")\n";
+        }
+    }
+    std::cout << "  Matching validity: " << (matching.isValidMatching() ? "OK" : "FAILED") << "\n";
 }
 
 void printHeapTree(const TriageSimulation& sim) {
@@ -352,6 +387,35 @@ bool removePatientAndReport(TriageSimulation& sim, int id) {
     return true;
 }
 
+bool transferZoneAndReport(TriageSimulation& sim, int id, int newZone) {
+    Patient before;
+    if (!sim.waitingQueue.getPatient(id, before)) {
+        std::cout << "  Error: no waiting patient has ID " << id << ".\n";
+        return false;
+    }
+    if (!isValidZone(newZone)) {
+        std::cout << "  Error: zone must be between 1 and " << NUM_ZONES << ".\n";
+        return false;
+    }
+    if (newZone == before.zone) {
+        std::cout << "  Patient " << id << " is already in zone " << newZone << ". Nothing changed.\n";
+        return false;
+    }
+
+    sim.waitingQueue.transferZone(id, newZone);
+    adjustZone(sim, before.zone, -1, -before.waitingMinutes);
+    adjustZone(sim, newZone, +1, before.waitingMinutes);
+
+    std::cout << "  Patient " << id << " (" << before.name << ") moved from zone " << before.zone
+              << " to zone " << newZone << ", keeping " << before.waitingMinutes << " min of waiting time.\n";
+    std::cout << "  Priority score " << before.priorityScore
+              << " and queue position are unchanged (zone is not part of the formula).  "
+              << heapWorkNote(sim) << "\n";
+    std::cout << "  Segment tree: 2 point updates (zone " << before.zone << " -1, zone " << newZone
+              << " +1), O(log k) each.\n";
+    return true;
+}
+
 bool readInt(const std::string& prompt, int& value) {
     while (true) {
         std::cout << prompt;
@@ -490,6 +554,17 @@ void handleRemovePatient(TriageSimulation& sim) {
     removePatientAndReport(sim, id);
 }
 
+void handleTransferZone(TriageSimulation& sim) {
+    int id, zone;
+    if (!readInt("Patient ID: ", id)) return;
+    if (!readInt("New zone (1-5): ", zone)) return;
+    transferZoneAndReport(sim, id, zone);
+}
+
+void handleBedAssignments(const TriageSimulation& sim) {
+    printBedAssignments(sim);
+}
+
 void handleZoneQuery(TriageSimulation& sim) {
     int fromZone, toZone;
     if (!readInt("From zone (1-5): ", fromZone)) return;
@@ -618,6 +693,19 @@ void runDemonstration() {
     printZoneRange(sim, 1, 5);
     printConsistencyCheck(sim);
 
+    printStepHeading("STEP 9: Relieve the crowded zone (zone transfer, O(log k) tree work)");
+    std::cout << "Zone 2 is over capacity and zone 5 is empty, so Hana Sato is moved.\n"
+              << "The heap does not reorder: only her zone field changes (O(1) via the map).\n\n";
+    transferZoneAndReport(sim, 108, 5);
+    std::cout << "\n";
+    printZoneRange(sim, 2, 2);
+    std::cout << "\n";
+    printZoneRange(sim, 1, 5);
+    printConsistencyCheck(sim);
+
+    printStepHeading("STEP 10: Assign available beds (Hopcroft-Karp maximum matching)");
+    printBedAssignments(sim);
+
     std::cout << "\n=============== DEMONSTRATION COMPLETE ===============\n";
 }
 
@@ -632,6 +720,8 @@ void printMenu() {
               << "7. Run predefined demonstration\n"
               << "8. Remove a patient (left without being seen)\n"
               << "9. Show heap as a tree + ID->index map\n"
+              << "10. Transfer a patient to another zone\n"
+              << "11. Assign available beds (Hopcroft-Karp matching)\n"
               << "0. Exit\n\n";
 }
 
@@ -664,8 +754,10 @@ int main(int argc, char* argv[]) {
             case 7: runDemonstration(); break;
             case 8: handleRemovePatient(sim); break;
             case 9: printHeapTree(sim); break;
+            case 10: handleTransferZone(sim); break;
+            case 11: handleBedAssignments(sim); break;
             case 0: std::cout << "Goodbye.\n"; return 0;
-            default: std::cout << "  Invalid choice. Enter a number from 0 to 9.\n"; break;
+            default: std::cout << "  Invalid choice. Enter a number from 0 to 11.\n"; break;
         }
     }
 }

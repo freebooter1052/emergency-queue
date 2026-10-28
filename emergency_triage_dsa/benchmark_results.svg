@@ -1,0 +1,57 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1040' height='360' font-family='sans-serif' font-size='12'>
+<rect width='100%' height='100%' fill='white'/>
+<text x='60' y='22' font-size='14' font-weight='bold'>Total time vs decrease-key ratio: steady arrivals</text>
+<rect x='60' y='40' width='440' height='270' fill='none' stroke='#999'/>
+<line x1='60' x2='500' y1='310' y2='310' stroke='#eee'/><text x='54' y='314' text-anchor='end'>0</text>
+<line x1='60' x2='500' y1='242.5' y2='242.5' stroke='#eee'/><text x='54' y='246.5' text-anchor='end'>33</text>
+<line x1='60' x2='500' y1='175' y2='175' stroke='#eee'/><text x='54' y='179' text-anchor='end'>67</text>
+<line x1='60' x2='500' y1='107.5' y2='107.5' stroke='#eee'/><text x='54' y='111.5' text-anchor='end'>100</text>
+<line x1='60' x2='500' y1='40' y2='40' stroke='#eee'/><text x='54' y='44' text-anchor='end'>134</text>
+<text x='60' y='326' text-anchor='middle'>0.0</text>
+<text x='108.889' y='326' text-anchor='middle'>0.1</text>
+<text x='157.778' y='326' text-anchor='middle'>0.2</text>
+<text x='206.667' y='326' text-anchor='middle'>0.3</text>
+<text x='255.556' y='326' text-anchor='middle'>0.4</text>
+<text x='304.444' y='326' text-anchor='middle'>0.5</text>
+<text x='353.333' y='326' text-anchor='middle'>0.6</text>
+<text x='402.222' y='326' text-anchor='middle'>0.7</text>
+<text x='451.111' y='326' text-anchor='middle'>0.8</text>
+<text x='500' y='326' text-anchor='middle'>0.9</text>
+<text x='280' y='352' text-anchor='middle'>decrease-key ratio</text>
+<text x='14' y='175' transform='rotate(-90 14 175)' text-anchor='middle'>total time (ms)</text>
+<polyline fill='none' stroke='#1f77b4' stroke-width='2' points='60,272.267 108.889,271.079 157.778,268.145 206.667,277.165 255.556,274.929 304.444,276.803 353.333,280.617 402.222,282.083 451.111,284.636 500,285.415 '/>
+<rect x='70' y='45' width='12' height='3' fill='#1f77b4'/><text x='86' y='52'>binary (d=2)</text>
+<polyline fill='none' stroke='#2ca02c' stroke-width='2' points='60,273.66 108.889,270.431 157.778,264.83 206.667,271.271 255.556,273.477 304.444,273.942 353.333,276.976 402.222,281.197 451.111,284.569 500,286.403 '/>
+<rect x='180' y='45' width='12' height='3' fill='#2ca02c'/><text x='196' y='52'>4-ary</text>
+<polyline fill='none' stroke='#9467bd' stroke-width='2' points='60,271.423 108.889,268.286 157.778,263.889 206.667,268.005 255.556,272.901 304.444,271.599 353.333,277.8 402.222,281.987 451.111,286.042 500,289.983 '/>
+<rect x='290' y='45' width='12' height='3' fill='#9467bd'/><text x='306' y='52'>8-ary</text>
+<polyline fill='none' stroke='#d62728' stroke-width='2' points='60,66.0929 108.889,107.957 157.778,60 206.667,129.841 255.556,150.87 304.444,153.595 353.333,178.598 402.222,205.649 451.111,218.312 500,234.404 '/>
+<rect x='400' y='45' width='12' height='3' fill='#d62728'/><text x='416' y='52'>Fibonacci</text>
+<text x='580' y='22' font-size='14' font-weight='bold'>Total time vs decrease-key ratio: mass-casualty burst</text>
+<rect x='580' y='40' width='440' height='270' fill='none' stroke='#999'/>
+<line x1='580' x2='1020' y1='310' y2='310' stroke='#eee'/><text x='574' y='314' text-anchor='end'>0</text>
+<line x1='580' x2='1020' y1='242.5' y2='242.5' stroke='#eee'/><text x='574' y='246.5' text-anchor='end'>37</text>
+<line x1='580' x2='1020' y1='175' y2='175' stroke='#eee'/><text x='574' y='179' text-anchor='end'>73</text>
+<line x1='580' x2='1020' y1='107.5' y2='107.5' stroke='#eee'/><text x='574' y='111.5' text-anchor='end'>110</text>
+<line x1='580' x2='1020' y1='40' y2='40' stroke='#eee'/><text x='574' y='44' text-anchor='end'>146</text>
+<text x='580' y='326' text-anchor='middle'>0.0</text>
+<text x='628.889' y='326' text-anchor='middle'>0.1</text>
+<text x='677.778' y='326' text-anchor='middle'>0.2</text>
+<text x='726.667' y='326' text-anchor='middle'>0.3</text>
+<text x='775.556' y='326' text-anchor='middle'>0.4</text>
+<text x='824.444' y='326' text-anchor='middle'>0.5</text>
+<text x='873.333' y='326' text-anchor='middle'>0.6</text>
+<text x='922.222' y='326' text-anchor='middle'>0.7</text>
+<text x='971.111' y='326' text-anchor='middle'>0.8</text>
+<text x='1020' y='326' text-anchor='middle'>0.9</text>
+<text x='800' y='352' text-anchor='middle'>decrease-key ratio</text>
+<text x='14' y='175' transform='rotate(-90 14 175)' text-anchor='middle'>total time (ms)</text>
+<polyline fill='none' stroke='#1f77b4' stroke-width='2' points='580,268.693 628.889,267.881 677.778,275.132 726.667,270.872 775.556,276.741 824.444,273.921 873.333,269.339 922.222,281.71 971.111,282.739 1020,290.364 '/>
+<rect x='590' y='45' width='12' height='3' fill='#1f77b4'/><text x='606' y='52'>binary (d=2)</text>
+<polyline fill='none' stroke='#2ca02c' stroke-width='2' points='580,264.794 628.889,266.702 677.778,271.084 726.667,266.917 775.556,272.287 824.444,269.84 873.333,266.488 922.222,281.834 971.111,280.626 1020,291.552 '/>
+<rect x='700' y='45' width='12' height='3' fill='#2ca02c'/><text x='716' y='52'>4-ary</text>
+<polyline fill='none' stroke='#9467bd' stroke-width='2' points='580,270.008 628.889,269.561 677.778,268.466 726.667,270.837 775.556,271.111 824.444,274.057 873.333,278.939 922.222,281.098 971.111,282.412 1020,292.259 '/>
+<rect x='810' y='45' width='12' height='3' fill='#9467bd'/><text x='826' y='52'>8-ary</text>
+<polyline fill='none' stroke='#d62728' stroke-width='2' points='580,60 628.889,65.7957 677.778,78.9563 726.667,91.1435 775.556,113.541 824.444,151.539 873.333,148.862 922.222,186.742 971.111,170.667 1020,244.605 '/>
+<rect x='920' y='45' width='12' height='3' fill='#d62728'/><text x='936' y='52'>Fibonacci</text>
+</svg>
