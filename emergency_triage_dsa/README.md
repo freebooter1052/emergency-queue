@@ -99,6 +99,7 @@ The menu is:
 8. Remove a patient (left without being seen)
 9. Show heap as a tree + ID->index map
 10. Transfer a patient to another zone
+11. Assign available beds (Hopcroft-Karp matching)
 0. Exit
 ```
 
@@ -113,7 +114,8 @@ small operation trace and the predefined demo emits `[check]` lines that verify
 the heap property, ID map, and zone aggregates. Its final step also runs the
 Hopcroft-Karp bed matcher with one zone-compatible bed per zone and prints the
 patient-to-bed assignments, unmatched patients, matching phase count, and
-matching validity.
+matching validity. The same report is available at any time from interactive
+menu option 11.
 
 ## Priority model
 

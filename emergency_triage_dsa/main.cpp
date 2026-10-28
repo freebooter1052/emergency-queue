@@ -561,6 +561,10 @@ void handleTransferZone(TriageSimulation& sim) {
     transferZoneAndReport(sim, id, zone);
 }
 
+void handleBedAssignments(const TriageSimulation& sim) {
+    printBedAssignments(sim);
+}
+
 void handleZoneQuery(TriageSimulation& sim) {
     int fromZone, toZone;
     if (!readInt("From zone (1-5): ", fromZone)) return;
@@ -717,6 +721,7 @@ void printMenu() {
               << "8. Remove a patient (left without being seen)\n"
               << "9. Show heap as a tree + ID->index map\n"
               << "10. Transfer a patient to another zone\n"
+              << "11. Assign available beds (Hopcroft-Karp matching)\n"
               << "0. Exit\n\n";
 }
 
@@ -750,8 +755,9 @@ int main(int argc, char* argv[]) {
             case 8: handleRemovePatient(sim); break;
             case 9: printHeapTree(sim); break;
             case 10: handleTransferZone(sim); break;
+            case 11: handleBedAssignments(sim); break;
             case 0: std::cout << "Goodbye.\n"; return 0;
-            default: std::cout << "  Invalid choice. Enter a number from 0 to 10.\n"; break;
+            default: std::cout << "  Invalid choice. Enter a number from 0 to 11.\n"; break;
         }
     }
 }
