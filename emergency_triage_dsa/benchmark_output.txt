@@ -1,0 +1,69 @@
+Heap benchmark. Same generated operation stream for every structure; every ExtractMin is
+checked against a reference ordered set. Educational priorities, fictional patients.
+Per-operation ns come from a calibrated CPU cycle counter (timer overhead subtracted); 'touches/op' counts heap entries or nodes read/written
+(a memory-traffic proxy, NOT hardware cache misses). Largest deterioration drop: 200 points.
+
+=== steady arrivals, decrease-key ratio 0.30 ===
+  preload 10000 patients, 300000 operations (about 105127 insert, 89992 decrease-key, 104881 extract-min), peak queue 10517, 5 trials after 1 warm-up
+  structure      total ms (mean +- sd)  insert ns decr-key ns extract ns   peak KB  touches/op  correct
+  binary (d=2)             16.3 +- 0.6         15          47         92       707        20.3      yes
+  4-ary                    19.2 +- 1.8         10          32        102       707        16.5      yes
+  8-ary                    20.8 +- 3.1         10          32        112       707        18.7      yes
+  Fibonacci               89.3 +- 10.5         65         130        686      1578        11.7      yes
+  fastest overall: binary (d=2)
+
+=== mass-casualty burst, decrease-key ratio 0.30 ===
+  preload 10000 patients, 300000 operations (about 101096 insert, 87808 decrease-key, 111096 extract-min), peak queue 39712, 5 trials after 1 warm-up
+  structure      total ms (mean +- sd)  insert ns decr-key ns extract ns   peak KB  touches/op  correct
+  binary (d=2)             21.2 +- 5.8         24          60        119      1459        19.5      yes
+  4-ary                    23.3 +- 6.5         12          35        104      1459        16.0      yes
+  8-ary                    21.2 +- 2.8         10          36        116      1459        18.0      yes
+  Fibonacci              118.6 +- 10.1         71         154        813      3381        13.9      yes
+  fastest overall: binary (d=2)
+
+=== Total time (ms, mean of trials) vs decrease-key ratio: steady arrivals ===
+  ratio     binary (d=2)         4-ary         8-ary     Fibonacci         fastest      Fib / binary
+  0.00              18.7          18.0          19.1         120.9           4-ary              6.46
+  0.10              19.3          19.6          20.7         100.1    binary (d=2)              5.19
+  0.20              20.7          22.4          22.8         123.9    binary (d=2)              5.97
+  0.30              16.3          19.2          20.8          89.3    binary (d=2)              5.49
+  0.40              17.4          18.1          18.4          78.9    binary (d=2)              4.54
+  0.50              16.4          17.9          19.0          77.5    binary (d=2)              4.71
+  0.60              14.6          16.4          16.0          65.1    binary (d=2)              4.47
+  0.70              13.8          14.3          13.9          51.7    binary (d=2)              3.74
+  0.80              12.6          12.6          11.9          45.4           8-ary              3.61
+  0.90              12.2          11.7           9.9          37.5           8-ary              3.07
+  Result: the Fibonacci heap was not the fastest at any tested ratio.
+
+=== Total time (ms, mean of trials) vs decrease-key ratio: mass-casualty burst ===
+  ratio     binary (d=2)         4-ary         8-ary     Fibonacci         fastest      Fib / binary
+  0.00              22.4          24.5          21.7         135.5           8-ary              6.05
+  0.10              22.8          23.5          21.9         132.3           8-ary              5.80
+  0.20              18.9          21.1          22.5         125.2    binary (d=2)              6.63
+  0.30              21.2          23.3          21.2         118.6    binary (d=2)              5.59
+  0.40              18.0          20.4          21.1         106.5    binary (d=2)              5.91
+  0.50              19.6          21.8          19.5          85.9           8-ary              4.39
+  0.60              22.0          23.6          16.8          87.3           8-ary              3.96
+  0.70              15.3          15.3          15.7          66.8           4-ary              4.36
+  0.80              14.8          15.9          15.0          75.5    binary (d=2)              5.11
+  0.90              10.6          10.0           9.6          35.4           8-ary              3.33
+  Result: the Fibonacci heap was not the fastest at any tested ratio.
+
+All heaps produced the reference extraction order and kept a valid structure: yes
+
+=== Segment tree vs linear scan: zone x ESI range statistics ===
+  25 buckets (5 zones x 5 ESI levels), 5000 random range queries per size,
+  best of 3 repetitions; every answer is checked against the scan.
+   patients   scan ns/query   tree ns/query   speedup    nodes/query    tree update ns   correct
+        100             179             157      1.1x           30.7               308       yes
+       1000            1988             139     14.3x           30.7               344       yes
+      10000           48219             165    292.1x           30.5               479       yes
+     100000          556320             158   3513.3x           30.9              3024       yes
+  The scan grows with the number of patients; the tree's query work depends only on the
+  number of buckets (k = 25). A tree update also pays a multiset step inside its leaf.
+
+Wrote benchmark_results.csv
+Wrote benchmark_results.svg
+
+Note: numbers depend on the machine, compiler and workload. They show how these
+implementations behaved here, not a general ranking of the data structures.
